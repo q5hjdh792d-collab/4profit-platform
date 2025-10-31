@@ -160,7 +160,6 @@ export async function GET(request) {
       ])
       const items = await dbq.toArray()
 
-      // Mask contacts by default
       const user = await getSessionUser()
       const investorId = user?.role === 'investor' ? user.id : null
       if (investorId) {
@@ -195,6 +194,21 @@ export async function GET(request) {
         prof.links = { ...prof.links, email: maskContact(prof.links?.email), telegram: maskContact(prof.links?.telegram) }
       }
       return json({ profile: prof })
+    }
+
+    if (pathname === '/my/requests') {
+      const me = await requireAuth()
+      if (me.role === 'investor') {
+        const list = await db.collection('contact_requests').find({ investor_id: me.id }).sort({ created_at: -1 }).toArray()
+        return json({ items: list })
+      }
+      if (me.role === 'trader' || me.role === 'admin') {
+        const myProfiles = await db.collection('trader_profiles').find({ user_id: me.id }).toArray()
+        const ids = myProfiles.map(p => p.id)
+        const list = await db.collection('contact_requests').find({ trader_id: { $in: ids } }).sort({ created_at: -1 }).toArray()
+        return json({ items: list })
+      }
+      return json({ items: [] })
     }
 
     if (pathname === '/session') {
