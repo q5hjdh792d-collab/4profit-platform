@@ -64,3 +64,16 @@ function RoleChip() {
   )
 }
 
+// client role chip
+'use client'
+function ClientRoleChip(){
+  const [role, setRole] = React.useState('Guest')
+  React.useEffect(()=>{
+    fetch('/api/session').then(r=>r.json()).then(j=>{
+      if (j?.user?.role) setRole(j.user.role)
+    }).catch(()=>{})
+  },[])
+  return <>{role}</>
+}
+
+
