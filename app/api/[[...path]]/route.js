@@ -170,6 +170,12 @@ export async function GET(request) {
             it.links = { ...it.links, email: maskContact(it.links?.email), telegram: maskContact(it.links?.telegram) }
           }
         })
+        // mark favorites and compare flags
+        const favs = await db.collection('favorites').find({ investor_id: investorId }).toArray()
+        const favSet = new Set(favs.map(f => f.trader_id))
+        const cmp = await db.collection('user_compare').findOne({ user_id: investorId })
+        const cmpSet = new Set((cmp?.trader_ids)||[])
+        items.forEach(it => { it._favorite = favSet.has(it.id); it._in_compare = cmpSet.has(it.id) })
       } else {
         items.forEach(it => {
           it.links = { ...it.links, email: maskContact(it.links?.email), telegram: maskContact(it.links?.telegram) }
@@ -189,11 +195,32 @@ export async function GET(request) {
       if (user?.role === 'investor') {
         const open = await db.collection('contact_requests').findOne({ investor_id: user.id, trader_id: prof.id, status: 'accepted', opened_until: { $gt: new Date() } })
         if (open) mask = false
+        const fav = await db.collection('favorites').findOne({ investor_id: user.id, trader_id: prof.id })
+        const cmp = await db.collection('user_compare').findOne({ user_id: user.id })
+        prof._favorite = !!fav
+        prof._in_compare = !!(cmp?.trader_ids||[]).includes(prof.id)
       }
       if (mask) {
         prof.links = { ...prof.links, email: maskContact(prof.links?.email), telegram: maskContact(prof.links?.telegram) }
       }
       return json({ profile: prof })
+    }
+
+    if (pathname === '/favorites') {
+      const me = await requireAuth()
+      if (me.role !== 'investor') return json({ items: [] })
+      const favs = await db.collection('favorites').find({ investor_id: me.id }).toArray()
+      const ids = favs.map(f => f.trader_id)
+      const items = await db.collection('trader_profiles').find({ id: { $in: ids } }).toArray()
+      return json({ items })
+    }
+
+    if (pathname === '/compare') {
+      const me = await requireAuth()
+      const doc = await db.collection('user_compare').findOne({ user_id: me.id })
+      const ids = doc?.trader_ids || []
+      const items = await db.collection('trader_profiles').find({ id: { $in: ids } }).toArray()
+      return json({ items, ids })
     }
 
     if (pathname === '/my/requests') {
@@ -268,6 +295,43 @@ export async function POST(request) {
         await db.collection('contact_requests').updateOne({ id: request_id }, { $set: { status: 'declined' } })
       }
       return json({ ok: true })
+    }
+
+    if (pathname === '/favorites/toggle') {
+      const me = await requireAuth()
+      if (me.role !== 'investor') return json({ error: 'Only investors' }, 403)
+      const { trader_id } = await request.json()
+      if (!trader_id) return json({ error: 'trader_id required' }, 400)
+      const existing = await db.collection('favorites').findOne({ investor_id: me.id, trader_id })
+      if (existing) {
+        await db.collection('favorites').deleteOne({ investor_id: me.id, trader_id })
+        return json({ ok: true, favorited: false })
+      }
+      await db.collection('favorites').insertOne({ investor_id: me.id, trader_id, created_at: new Date() })
+      return json({ ok: true, favorited: true })
+    }
+
+    if (pathname === '/compare/add') {
+      const me = await requireAuth()
+      const { trader_id } = await request.json()
+      if (!trader_id) return json({ error: 'trader_id required' }, 400)
+      const doc = await db.collection('user_compare').findOne({ user_id: me.id })
+      const arr = doc?.trader_ids || []
+      if (arr.includes(trader_id)) return json({ ok: true, ids: arr })
+      if (arr.length >= 3) return json({ error: 'Max 3 traders in compare' }, 400)
+      const next = [...arr, trader_id]
+      await db.collection('user_compare').updateOne({ user_id: me.id }, { $set: { user_id: me.id, trader_ids: next, updated_at: new Date() } }, { upsert: true })
+      return json({ ok: true, ids: next })
+    }
+
+    if (pathname === '/compare/remove') {
+      const me = await requireAuth()
+      const { trader_id } = await request.json()
+      const doc = await db.collection('user_compare').findOne({ user_id: me.id })
+      const arr = doc?.trader_ids || []
+      const next = arr.filter(id => id !== trader_id)
+      await db.collection('user_compare').updateOne({ user_id: me.id }, { $set: { user_id: me.id, trader_ids: next, updated_at: new Date() } }, { upsert: true })
+      return json({ ok: true, ids: next })
     }
 
     return json({ ok: true })
