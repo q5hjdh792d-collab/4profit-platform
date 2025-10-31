@@ -1,4 +1,6 @@
 'use client'
+import Providers from '@/app/providers'
+
 
 import { useState } from 'react'
 import { signIn, signOut, useSession } from 'next-auth/react'
