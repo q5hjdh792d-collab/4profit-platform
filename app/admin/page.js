@@ -34,7 +34,7 @@ export default function AdminPage(){
 
   return (
     <div className="container mx-auto py-8 space-y-6">
-      <h1 className="text-2xl font-semibold">Moderation Queue</h1>
+      <h1 className="text-2xl font-semibold flex items-center gap-2">Moderation Queue <span className="text-xs bg-secondary px-2 py-1 rounded-md">Pending ({items.length})</span></h1>
       <div className="grid md:grid-cols-2 gap-4">
         {items.map(p => (
           <Card key={p.id}>
