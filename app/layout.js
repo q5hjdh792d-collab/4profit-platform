@@ -49,7 +49,6 @@ export default function RootLayout({ children }) {
                 </div>
               </footer>
             </div>
-          </Providers>
           <Toaster />
         </ThemeProvider>
       </body>
