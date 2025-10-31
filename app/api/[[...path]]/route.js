@@ -372,7 +372,7 @@ export async function POST(request) {
       // notify investor
       try {
         const investor = await db.collection('users').findOne({ id: reqDoc.investor_id })
-        const subj = `4Profit: Your request was ${accept ? 'accepted' : 'declined'}`
+        const subj = accept ? 'Your contact request was accepted' : 'Your contact request was declined'
         const html = `<div style="font-family:sans-serif"><h2>Request ${accept ? 'accepted' : 'declined'}</h2><p>Trader: ${prof.name}</p></div>`
         await sendMail(investor.email, subj, html)
       } catch (err) { console.log('notify investor skipped', err?.message) }
