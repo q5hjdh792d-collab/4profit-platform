@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -42,7 +43,8 @@ export default function AdminPage(){
               <CardTitle className="flex items-center gap-3">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={p.avatar} alt={p.name} className="w-10 h-10 rounded-full object-cover" />
-                {p.name} <span className="text-xs text-muted-foreground">({p.country})</span>
+                <Link href={`/traders/${p.slug}`} target="_blank" className="hover:underline">{p.name}</Link>
+                <span className="text-xs text-muted-foreground">({p.country})</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">

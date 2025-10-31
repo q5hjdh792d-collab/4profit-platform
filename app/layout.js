@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { ThemeProvider } from 'next-themes'
 import { Toaster } from '@/components/ui/sonner'
 import Disclaimer from '@/app/partials/Disclaimer'
+import RoleChip from '@/app/partials/RoleChip'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -27,7 +28,7 @@ export default function RootLayout({ children }) {
                     <Link href="/favorites" className="hover:underline">Favorites</Link>
                     <Link href="/pricing" className="hover:underline">Pricing</Link>
                     <Link href="/auth" className="hover:underline">Login</Link>
-                  <RoleChip />
+                    <RoleChip />
                   </nav>
                 </div>
               </header>
@@ -54,26 +55,3 @@ export default function RootLayout({ children }) {
     </html>
   )
 }
-
-function RoleChip() {
-  return (
-    <span suppressHydrationWarning className="text-xs bg-secondary text-secondary-foreground px-2 py-1 rounded-md">
-      {/* Will be hydrated client-side */}
-      <ClientRoleChip />
-    </span>
-  )
-}
-
-// client role chip
-'use client'
-function ClientRoleChip(){
-  const [role, setRole] = React.useState('Guest')
-  React.useEffect(()=>{
-    fetch('/api/session').then(r=>r.json()).then(j=>{
-      if (j?.user?.role) setRole(j.user.role)
-    }).catch(()=>{})
-  },[])
-  return <>{role}</>
-}
-
-
