@@ -12,8 +12,9 @@ export const metadata = {
   description: 'Marketplace directory where investors discover traders via transparent profiles and filters.'
 }
 
-export default function RootLayout({ children }) {
 import Providers from './providers'
+
+export default function RootLayout({ children }) {
 
   return (
     <html lang="en" suppressHydrationWarning>
