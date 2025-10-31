@@ -106,92 +106,116 @@
 ## backend:
   - task: "Seed endpoint /api/seed"
     implemented: true
-    working: false
+    working: true
     file: "/app/app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         -working: false
         -agent: "main"
         -comment: "Implemented idempotent seed: users, trader_profiles, listings."
+        -working: true
+        -agent: "testing"
+        -comment: "✅ PASS: Seed endpoint returns {ok: true, seeded: true/false} correctly. Creates 13 users (1 admin, 2 investors, 10 traders) with profiles and listings."
   - task: "Auth: NextAuth credentials login"
     implemented: true
-    working: false
+    working: true
     file: "/app/app/api/auth/[...nextauth]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         -working: false
         -agent: "main"
         -comment: "Credentials authorize compares bcrypt hash from users collection."
+        -working: true
+        -agent: "testing"
+        -comment: "✅ PASS: NextAuth credentials login working. Fixed .env NEXTAUTH_SECRET formatting issue. Both investor and trader login successful with proper session cookies."
   - task: "List traders GET /api/traders with masked contacts and ordering"
     implemented: true
-    working: false
+    working: true
     file: "/app/app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         -working: false
         -agent: "main"
         -comment: "Masks email/telegram unless investor has accepted request (opened_until>now)."
+        -working: true
+        -agent: "testing"
+        -comment: "✅ PASS: Traders list returns 10 traders with properly masked email/telegram contacts (contains ***). Masking logic working correctly."
   - task: "Trader profile GET /api/trader/[slug] masking logic"
     implemented: true
-    working: false
+    working: true
     file: "/app/app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         -working: false
         -agent: "main"
         -comment: "Unmasks if investor has accepted request window."
+        -working: true
+        -agent: "testing"
+        -comment: "✅ PASS: Trader profile unmasking works correctly. After accepted contact request, investor can see unmasked email and telegram contacts."
   - task: "Contact request POST /api/contact/request with credits + rate limit"
     implemented: true
-    working: false
+    working: true
     file: "/app/app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         -working: false
         -agent: "main"
         -comment: "Ensures 3 credits/month; rate limits 5/hour; prevents duplicate pending/accepted."
+        -working: true
+        -agent: "testing"
+        -comment: "✅ PASS: Contact request system working. Credit limiting (3/month) works correctly - returns 402 after 3 requests. Rate limiting logic implemented correctly but credit limit reached first in normal usage."
   - task: "Contact decision POST /api/contact/decision (trader/admin)"
     implemented: true
-    working: false
+    working: true
     file: "/app/app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         -working: false
         -agent: "main"
         -comment: "Accept sets opened_until+7d. Verifies ownership by trader."
+        -working: true
+        -agent: "testing"
+        -comment: "✅ PASS: Contact decision endpoint working. Trader can accept/decline requests. Accept sets opened_until to +7 days correctly."
   - task: "My requests GET /api/my/requests"
     implemented: true
-    working: false
+    working: true
     file: "/app/app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         -working: false
         -agent: "main"
         -comment: "Investor sees own; Trader/Admin sees requests to their profiles."
+        -working: true
+        -agent: "testing"
+        -comment: "✅ PASS: My requests endpoint working. Trader sees pending requests correctly. Proper role-based filtering implemented."
   - task: "Session GET /api/session"
     implemented: true
-    working: false
+    working: true
     file: "/app/app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "low"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         -working: false
         -agent: "main"
         -comment: "Returns session user with id/email/role."
+        -working: true
+        -agent: "testing"
+        -comment: "✅ PASS: Session endpoint working correctly. Returns user with id, email, role, and name for authenticated users."
 
 ## frontend:
   - task: "Home + layout + disclaimer + legal pages"
