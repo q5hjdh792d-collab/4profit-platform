@@ -43,9 +43,10 @@ async function getSessionUser() {
   return { id: session.user.id, email: session.user.email, role: session.user.role, name: session.user.name }
 }
 
-async function requireAuth() {
+async function requireAuth(roles = []) {
   const user = await getSessionUser()
   if (!user) throw new Error('Unauthorized')
+  if (roles.length && !roles.includes(user.role)) throw new Error('Forbidden')
   return user
 }
 
@@ -112,10 +113,12 @@ export async function GET(request) {
             telegram: `@demo_trader_${idx+1}`,
             twitter: `https://x.com/demo_trader_${idx+1}`,
             youtube: idx % 2 === 0 ? `https://youtube.com/@demotrader${idx+1}` : '' ,
-            email: `trader${String(idx+1).padStart(2,'0')}@4profit.dev`
+            email: `trader${String(idx+1).padStart(2,'0')}@4profit.dev`,
+            website: ''
           },
           metrics: { CAGR: cagr, max_drawdown: mdd, win_rate: win },
           is_verified: false,
+          status: 'approved',
           created_at: now
         }
       })
@@ -131,7 +134,7 @@ export async function GET(request) {
 
     if (pathname === '/traders') {
       const q = url.searchParams
-      const filters = {}
+      const filters = { $or: [ { status: 'approved' }, { status: { $exists: false } } ] }
       if (q.get('assets')) filters.assets = { $in: q.get('assets').split(',') }
       if (q.get('styles')) filters.styles = { $in: q.get('styles').split(',') }
       if (q.get('languages')) filters.languages = { $in: q.get('languages').split(',') }
@@ -149,12 +152,13 @@ export async function GET(request) {
       const limit = Math.min(Number(q.get('limit') || '20'), 50)
       const skip = (page - 1) * limit
 
+      const now = new Date()
       const dbq = db.collection('trader_profiles').aggregate([
         { $match: filters },
         { $lookup: { from: 'listings', localField: 'id', foreignField: 'trader_id', as: 'listing' } },
         { $addFields: { listing: { $first: '$listing' } } },
-        { $addFields: { boosted_first: { $cond: [{ $and: ['$listing.boosted_until', { $gt: ['$listing.boosted_until', new Date()] }] }, 1, 0] } } },
-        { $sort: { boosted_first: -1, 'listing.is_pro': -1, created_at: -1 } },
+        { $addFields: { boosted_effective: { $cond: [ { $gt: ['$listing.boosted_until', now] }, '$listing.boosted_until', null ] }, is_pro: '$listing.is_pro' } },
+        { $sort: { boosted_effective: -1, is_pro: -1, is_verified: -1, created_at: -1 } },
         { $skip: skip },
         { $limit: limit }
       ])
@@ -170,12 +174,6 @@ export async function GET(request) {
             it.links = { ...it.links, email: maskContact(it.links?.email), telegram: maskContact(it.links?.telegram) }
           }
         })
-        // mark favorites and compare flags
-        const favs = await db.collection('favorites').find({ investor_id: investorId }).toArray()
-        const favSet = new Set(favs.map(f => f.trader_id))
-        const cmp = await db.collection('user_compare').findOne({ user_id: investorId })
-        const cmpSet = new Set((cmp?.trader_ids)||[])
-        items.forEach(it => { it._favorite = favSet.has(it.id); it._in_compare = cmpSet.has(it.id) })
       } else {
         items.forEach(it => {
           it.links = { ...it.links, email: maskContact(it.links?.email), telegram: maskContact(it.links?.telegram) }
@@ -195,10 +193,6 @@ export async function GET(request) {
       if (user?.role === 'investor') {
         const open = await db.collection('contact_requests').findOne({ investor_id: user.id, trader_id: prof.id, status: 'accepted', opened_until: { $gt: new Date() } })
         if (open) mask = false
-        const fav = await db.collection('favorites').findOne({ investor_id: user.id, trader_id: prof.id })
-        const cmp = await db.collection('user_compare').findOne({ user_id: user.id })
-        prof._favorite = !!fav
-        prof._in_compare = !!(cmp?.trader_ids||[]).includes(prof.id)
       }
       if (mask) {
         prof.links = { ...prof.links, email: maskContact(prof.links?.email), telegram: maskContact(prof.links?.telegram) }
@@ -206,9 +200,14 @@ export async function GET(request) {
       return json({ profile: prof })
     }
 
+    if (pathname === '/admin/pending') {
+      const me = await requireAuth(['admin','mod'])
+      const items = await db.collection('trader_profiles').find({ status: 'pending' }).sort({ created_at: -1 }).toArray()
+      return json({ items })
+    }
+
     if (pathname === '/favorites') {
-      const me = await requireAuth()
-      if (me.role !== 'investor') return json({ items: [] })
+      const me = await requireAuth(['investor'])
       const favs = await db.collection('favorites').find({ investor_id: me.id }).toArray()
       const ids = favs.map(f => f.trader_id)
       const items = await db.collection('trader_profiles').find({ id: { $in: ids } }).toArray()
@@ -257,8 +256,7 @@ export async function POST(request) {
     const db = await getDb()
 
     if (pathname === '/contact/request') {
-      const me = await requireAuth()
-      if (me.role !== 'investor') return json({ error: 'Only investors can request' }, 403)
+      const me = await requireAuth(['investor'])
       const { trader_id } = await request.json()
       if (!trader_id) return json({ error: 'trader_id required' }, 400)
 
@@ -279,8 +277,7 @@ export async function POST(request) {
     }
 
     if (pathname === '/contact/decision') {
-      const me = await requireAuth()
-      if (me.role !== 'trader' && me.role !== 'admin') return json({ error: 'Only traders or admin' }, 403)
+      const me = await requireAuth(['trader','admin'])
       const { request_id, accept } = await request.json()
       const reqDoc = await db.collection('contact_requests').findOne({ id: request_id })
       if (!reqDoc) return json({ error: 'Request not found' }, 404)
@@ -297,9 +294,83 @@ export async function POST(request) {
       return json({ ok: true })
     }
 
+    if (pathname === '/submit') {
+      const me = await requireAuth(['trader'])
+      const body = await request.json()
+      if (!body?.consent) return json({ error: 'Consent required' }, 400)
+
+      const payload = {
+        avatar: body.avatar || '',
+        name: body.displayName || 'Trader',
+        country: body.country || '',
+        languages: Array.isArray(body.languages) ? body.languages : [],
+        styles: Array.isArray(body.styles) ? body.styles : [],
+        assets: Array.isArray(body.assets) ? body.assets : [],
+        experience_years: Number(body.experienceYears || 0),
+        risk_level: body.riskLevel || 'medium',
+        about: body.about || '',
+        links: {
+          tradingview: body.links?.tradingview || '',
+          telegram: body.links?.telegram || '',
+          twitter: body.links?.x || '',
+          youtube: body.links?.youtube || '',
+          website: body.links?.website || '',
+          email: body.links?.email || ''
+        },
+        metrics: {
+          CAGR: Number(body.metrics?.cagr || 0),
+          max_drawdown: Number(body.metrics?.maxDrawdown || 0),
+          win_rate: Number(body.metrics?.winRate || 0)
+        },
+        case_studies: Array.isArray(body.caseStudies) ? body.caseStudies.slice(0,5) : [],
+        is_verified: false,
+        status: 'pending',
+      }
+
+      const existing = await db.collection('trader_profiles').findOne({ user_id: me.id })
+      if (existing) {
+        await db.collection('trader_profiles').updateOne({ id: existing.id }, { $set: { ...payload } })
+        return json({ ok: true, id: existing.id })
+      }
+
+      const id = uuidv4()
+      const slugBase = (payload.name || 'trader').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'')
+      const slug = `${slugBase}-${id.slice(0,6)}`
+      const doc = { id, user_id: me.id, slug, created_at: new Date(), ...payload }
+      await db.collection('trader_profiles').insertOne(doc)
+      await db.collection('listings').updateOne({ trader_id: id }, { $setOnInsert: { trader_id: id, is_pro: false, boosted_until: null, updated_at: new Date() } }, { upsert: true })
+      return json({ ok: true, id })
+    }
+
+    if (pathname === '/admin/action') {
+      const me = await requireAuth(['admin','mod'])
+      const { trader_id, action, rejectionReason, edits } = await request.json()
+      const prof = await db.collection('trader_profiles').findOne({ id: trader_id })
+      if (!prof) return json({ error: 'Trader not found' }, 404)
+
+      if (action === 'approve') {
+        await db.collection('trader_profiles').updateOne({ id: trader_id }, { $set: { status: 'approved' } })
+        await db.collection('moderation_logs').insertOne({ id: uuidv4(), trader_id, moderator_id: me.id, action: 'approve', at: new Date() })
+        return json({ ok: true })
+      }
+      if (action === 'reject') {
+        await db.collection('trader_profiles').updateOne({ id: trader_id }, { $set: { status: 'rejected', rejection_reason: rejectionReason || '' } })
+        await db.collection('moderation_logs').insertOne({ id: uuidv4(), trader_id, moderator_id: me.id, action: 'reject', reason: rejectionReason || '', at: new Date() })
+        return json({ ok: true })
+      }
+      if (action === 'edit') {
+        const allowed = ['avatar','name','country','languages','styles','assets','experience_years','risk_level','about','links','metrics','case_studies']
+        const set = {}
+        for (const k of allowed) if (edits && typeof edits[k] !== 'undefined') set[k] = edits[k]
+        if (Object.keys(set).length) await db.collection('trader_profiles').updateOne({ id: trader_id }, { $set: set })
+        await db.collection('moderation_logs').insertOne({ id: uuidv4(), trader_id, moderator_id: me.id, action: 'edit', edits: set, at: new Date() })
+        return json({ ok: true })
+      }
+      return json({ error: 'Unknown action' }, 400)
+    }
+
     if (pathname === '/favorites/toggle') {
-      const me = await requireAuth()
-      if (me.role !== 'investor') return json({ error: 'Only investors' }, 403)
+      const me = await requireAuth(['investor'])
       const { trader_id } = await request.json()
       if (!trader_id) return json({ error: 'trader_id required' }, 400)
       const existing = await db.collection('favorites').findOne({ investor_id: me.id, trader_id })

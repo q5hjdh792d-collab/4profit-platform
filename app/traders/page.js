@@ -77,7 +77,12 @@ export default function TradersPage() {
 
       {loading ? <p className="text-muted-foreground">Loading...</p> : (
         <div className="grid md:grid-cols-3 gap-4">
-          {(data.items||[]).map((t) => (
+          {(data.items||[]).map((t) => {
+            const now = Date.now()
+            const boosted = t.listing?.boosted_until && new Date(t.listing.boosted_until).getTime() > now
+            const pro = !!t.listing?.is_pro
+            const verified = !!t.is_verified
+            return (
             <Card key={t.id} className="hover:shadow-lg transition">
               <CardHeader>
                 <CardTitle className="flex items-center gap-3">
@@ -86,9 +91,14 @@ export default function TradersPage() {
                   <div className="flex-1">
                     <Link href={`/traders/${t.slug}`} className="hover:underline">{t.name}</Link>
                     <div className="text-xs text-muted-foreground">{t.country} • {t.experience_years}y • {t.risk_level}</div>
+                    <div className="flex gap-2 mt-1">
+                      {boosted && <Badge variant="default">BOOST</Badge>}
+                      {pro && <Badge variant="secondary">PRO</Badge>}
+                      {verified && <Badge>VERIFIED</Badge>}
+                    </div>
                   </div>
-                  <button title="Favorite" onClick={()=>toggleFav(t)} className={`p-2 rounded-md ${t._favorite ? 'text-red-500' : 'text-muted-foreground hover:text-foreground'}`}><Heart className="w-4 h-4"/></button>
-                  <button title="Add to compare" onClick={()=>addCompare(t)} className={`p-2 rounded-md ${t._in_compare ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}><Scale className="w-4 h-4"/></button>
+                  <button title="Favorite" onClick={()=>toggleFav(t)} className={`p-2 rounded-md ${t._favorite ? 'text-red-500' : 'text-muted-foreground hover:text-foreground'}`}>♥</button>
+                  <button title="Add to compare" onClick={()=>addCompare(t)} className={`p-2 rounded-md ${t._in_compare ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>⇄</button>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -107,7 +117,7 @@ export default function TradersPage() {
                 </div>
               </CardContent>
             </Card>
-          ))}
+          )})}
         </div>
       )}
     </div>
