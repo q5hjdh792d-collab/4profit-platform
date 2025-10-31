@@ -119,6 +119,7 @@ export async function GET(request) {
           metrics: { CAGR: cagr, max_drawdown: mdd, win_rate: win },
           is_verified: false,
           status: 'approved',
+          views: 0,
           created_at: now
         }
       })
@@ -174,6 +175,11 @@ export async function GET(request) {
             it.links = { ...it.links, email: maskContact(it.links?.email), telegram: maskContact(it.links?.telegram) }
           }
         })
+        const favs = await db.collection('favorites').find({ investor_id: investorId }).toArray()
+        const favSet = new Set(favs.map(f => f.trader_id))
+        const cmp = await db.collection('user_compare').findOne({ user_id: investorId })
+        const cmpSet = new Set((cmp?.trader_ids)||[])
+        items.forEach(it => { it._favorite = favSet.has(it.id); it._in_compare = cmpSet.has(it.id) })
       } else {
         items.forEach(it => {
           it.links = { ...it.links, email: maskContact(it.links?.email), telegram: maskContact(it.links?.telegram) }
@@ -189,6 +195,11 @@ export async function GET(request) {
       const prof = await db.collection('trader_profiles').findOne({ slug })
       if (!prof) return json({ error: 'Not found' }, 404)
       const user = await getSessionUser()
+      // increment views if viewer is not owner
+      if (!user || user.id !== prof.user_id) {
+        await db.collection('trader_profiles').updateOne({ id: prof.id }, { $inc: { views: 1 } })
+        prof.views = (prof.views || 0) + 1
+      }
       let mask = true
       if (user?.role === 'investor') {
         const open = await db.collection('contact_requests').findOne({ investor_id: user.id, trader_id: prof.id, status: 'accepted', opened_until: { $gt: new Date() } })
@@ -202,7 +213,16 @@ export async function GET(request) {
 
     if (pathname === '/admin/pending') {
       const me = await requireAuth(['admin','mod'])
-      const items = await db.collection('trader_profiles').find({ status: 'pending' }).sort({ created_at: -1 }).toArray()
+      const now = new Date()
+      const items = await db.collection('trader_profiles').aggregate([
+        { $match: { status: 'pending' } },
+        { $lookup: { from: 'moderation_logs', let: { t_id: '$id' }, pipeline: [
+          { $match: { $expr: { $eq: ['$trader_id', '$$t_id'] } } },
+          { $sort: { at: -1 } },
+          { $limit: 3 }
+        ], as: 'logs' } },
+        { $sort: { created_at: -1 } }
+      ]).toArray()
       return json({ items })
     }
 
@@ -235,6 +255,29 @@ export async function GET(request) {
         return json({ items: list })
       }
       return json({ items: [] })
+    }
+
+    if (pathname === '/me/profile') {
+      const me = await requireAuth(['trader'])
+      const prof = await db.collection('trader_profiles').findOne({ user_id: me.id })
+      return json({ profile: prof || null })
+    }
+
+    if (pathname === '/dashboard/overview') {
+      const me = await requireAuth(['trader'])
+      const prof = await db.collection('trader_profiles').findOne({ user_id: me.id })
+      if (!prof) return json({ profile: null, stats: { views: 0, pending:0, accepted:0, declined:0 }, recent: [] })
+      const [pending, accepted, declined] = await Promise.all([
+        db.collection('contact_requests').countDocuments({ trader_id: prof.id, status: 'pending' }),
+        db.collection('contact_requests').countDocuments({ trader_id: prof.id, status: 'accepted' }),
+        db.collection('contact_requests').countDocuments({ trader_id: prof.id, status: 'declined' })
+      ])
+      const recent = await db.collection('contact_requests').find({ trader_id: prof.id }).sort({ created_at: -1 }).limit(10).toArray()
+      const investorIds = Array.from(new Set(recent.map(r => r.investor_id)))
+      const investors = await db.collection('users').find({ id: { $in: investorIds } }).toArray()
+      const map = new Map(investors.map(i => [i.id, i]))
+      const recentView = recent.map(r => ({ id: r.id, status: r.status, created_at: r.created_at, investor: maskContact(map.get(r.investor_id)?.email || '') }))
+      return json({ profile: { id: prof.id, slug: prof.slug, status: prof.status, views: prof.views||0 }, stats: { views: prof.views||0, pending, accepted, declined }, recent: recentView })
     }
 
     if (pathname === '/session') {
@@ -326,7 +369,7 @@ export async function POST(request) {
           win_rate: Number(body.metrics?.winRate || 0)
         },
         case_studies: Array.isArray(body.caseStudies) ? body.caseStudies.slice(0,5) : [],
-        is_verified: false,
+        is_verified: !!body.is_verified || false,
         status: 'pending',
       }
 
@@ -339,7 +382,7 @@ export async function POST(request) {
       const id = uuidv4()
       const slugBase = (payload.name || 'trader').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'')
       const slug = `${slugBase}-${id.slice(0,6)}`
-      const doc = { id, user_id: me.id, slug, created_at: new Date(), ...payload }
+      const doc = { id, user_id: me.id, slug, created_at: new Date(), views: 0, ...payload }
       await db.collection('trader_profiles').insertOne(doc)
       await db.collection('listings').updateOne({ trader_id: id }, { $setOnInsert: { trader_id: id, is_pro: false, boosted_until: null, updated_at: new Date() } }, { upsert: true })
       return json({ ok: true, id })
@@ -347,13 +390,15 @@ export async function POST(request) {
 
     if (pathname === '/admin/action') {
       const me = await requireAuth(['admin','mod'])
-      const { trader_id, action, rejectionReason, edits } = await request.json()
+      const { trader_id, action, rejectionReason, edits, is_verified } = await request.json()
       const prof = await db.collection('trader_profiles').findOne({ id: trader_id })
       if (!prof) return json({ error: 'Trader not found' }, 404)
 
       if (action === 'approve') {
-        await db.collection('trader_profiles').updateOne({ id: trader_id }, { $set: { status: 'approved' } })
-        await db.collection('moderation_logs').insertOne({ id: uuidv4(), trader_id, moderator_id: me.id, action: 'approve', at: new Date() })
+        const setObj = { status: 'approved' }
+        if (typeof is_verified !== 'undefined') setObj.is_verified = !!is_verified
+        await db.collection('trader_profiles').updateOne({ id: trader_id }, { $set: setObj })
+        await db.collection('moderation_logs').insertOne({ id: uuidv4(), trader_id, moderator_id: me.id, action: 'approve', set: setObj, at: new Date() })
         return json({ ok: true })
       }
       if (action === 'reject') {
@@ -362,7 +407,7 @@ export async function POST(request) {
         return json({ ok: true })
       }
       if (action === 'edit') {
-        const allowed = ['avatar','name','country','languages','styles','assets','experience_years','risk_level','about','links','metrics','case_studies']
+        const allowed = ['avatar','name','country','languages','styles','assets','experience_years','risk_level','about','links','metrics','case_studies','is_verified']
         const set = {}
         for (const k of allowed) if (edits && typeof edits[k] !== 'undefined') set[k] = edits[k]
         if (Object.keys(set).length) await db.collection('trader_profiles').updateOne({ id: trader_id }, { $set: set })

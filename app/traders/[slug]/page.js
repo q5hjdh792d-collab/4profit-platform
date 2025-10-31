@@ -6,15 +6,40 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { toast } from 'sonner'
 
+function ProfileSkeleton(){
+  return (
+    <div className="container mx-auto py-8 space-y-6 animate-pulse">
+      <div className="flex items-center gap-4">
+        <div className="w-20 h-20 rounded-full bg-muted" />
+        <div className="space-y-2">
+          <div className="h-5 bg-muted rounded w-40" />
+          <div className="h-4 bg-muted rounded w-64" />
+        </div>
+      </div>
+      <Card>
+        <CardContent className="p-4 space-y-2 text-sm">
+          <div className="h-4 bg-muted rounded w-1/2" />
+          <div className="h-4 bg-muted rounded w-1/3" />
+          <div className="h-4 bg-muted rounded w-2/3" />
+          <div className="h-4 bg-muted rounded w-1/4" />
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
 export default function TraderProfilePage() {
   const params = useParams()
   const slug = params?.slug
   const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
 
   const load = async () => {
+    setLoading(true)
     const res = await fetch(`/api/trader/${slug}`)
     const j = await res.json()
     setData(j.profile)
+    setLoading(false)
   }
 
   useEffect(() => { if (slug) load() }, [slug])
@@ -26,7 +51,8 @@ export default function TraderProfilePage() {
     else toast.success('Request sent')
   }
 
-  if (!data) return <div className="container mx-auto py-8">Loading...</div>
+  if (loading) return <ProfileSkeleton />
+  if (!data) return <div className="container mx-auto py-8">Not found</div>
 
   return (
     <div className="container mx-auto py-8 space-y-6">
@@ -35,7 +61,7 @@ export default function TraderProfilePage() {
         <img src={data.avatar} alt={data.name} className="w-20 h-20 rounded-full object-cover" />
         <div>
           <h1 className="text-2xl font-semibold">{data.name}</h1>
-          <div className="text-sm text-muted-foreground">{data.country} • {data.experience_years} years • {data.risk_level}</div>
+          <div className="text-sm text-muted-foreground">{data.country} • {data.experience_years} years • {data.risk_level} • Views: {data.views||0}</div>
         </div>
       </div>
 

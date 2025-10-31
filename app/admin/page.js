@@ -7,10 +7,34 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 
+function Editor({ item, onChange }){
+  const [local, setLocal] = useState(()=>({
+    displayName: item.name || '',
+    riskLevel: item.risk_level || 'medium',
+    links: { tradingview:item.links?.tradingview||'', telegram:item.links?.telegram||'', x:item.links?.twitter||'', youtube:item.links?.youtube||'', website:item.links?.website||'', email:item.links?.email||'' },
+    is_verified: !!item.is_verified
+  }))
+  useEffect(()=>{ onChange && onChange(local) },[local, onChange])
+  return (
+    <div className="grid md:grid-cols-2 gap-2">
+      <Input placeholder="Display name" value={local.displayName} onChange={e=>setLocal(s=>({...s, displayName:e.target.value}))} />
+      <Input placeholder="Risk level (low|medium|high)" value={local.riskLevel} onChange={e=>setLocal(s=>({...s, riskLevel:e.target.value}))} />
+      <Input placeholder="https://tradingview.com/u/username" value={local.links.tradingview} onChange={e=>setLocal(s=>({...s, links:{...s.links, tradingview:e.target.value}}))} />
+      <Input placeholder="@handle" value={local.links.telegram} onChange={e=>setLocal(s=>({...s, links:{...s.links, telegram:e.target.value}}))} />
+      <Input placeholder="https://x.com/username" value={local.links.x} onChange={e=>setLocal(s=>({...s, links:{...s.links, x:e.target.value}}))} />
+      <Input placeholder="https://youtube.com/@channel" value={local.links.youtube} onChange={e=>setLocal(s=>({...s, links:{...s.links, youtube:e.target.value}}))} />
+      <Input placeholder="https://your-site.com" value={local.links.website} onChange={e=>setLocal(s=>({...s, links:{...s.links, website:e.target.value}}))} />
+      <Input placeholder="email@domain.com" value={local.links.email} onChange={e=>setLocal(s=>({...s, links:{...s.links, email:e.target.value}}))} />
+      <label className="flex items-center gap-2 text-sm md:col-span-2"><input type="checkbox" checked={local.is_verified} onChange={e=>setLocal(s=>({...s, is_verified:e.target.checked}))}/> Verified</label>
+    </div>
+  )
+}
+
 export default function AdminPage(){
   const [role, setRole] = useState(null)
   const [items, setItems] = useState([])
   const [rejectReason, setRejectReason] = useState('')
+  const [edits, setEdits] = useState({})
 
   const load = async () => {
     const s = await fetch('/api/session', { cache: 'no-store' }).then(r=>r.json())
@@ -23,9 +47,18 @@ export default function AdminPage(){
   }
   useEffect(()=>{ load() },[])
 
-  const act = async (trader_id, action) => {
+  const saveEdits = async (trader_id) => {
+    const e = edits[trader_id]
+    if (!e) return
+    const toSend = { edits: { name: e.displayName, risk_level: e.riskLevel, links: { tradingview:e.links.tradingview, telegram:e.links.telegram, twitter:e.links.x, youtube:e.links.youtube, website:e.links.website, email:e.links.email }, is_verified: !!e.is_verified } }
+    const r = await fetch('/api/admin/action', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trader_id, action:'edit', ...toSend }) })
+    if (r.ok) { toast.success('Saved'); load() } else { const j = await r.json().catch(()=>({})); toast.error(j.error || 'Failed') }
+  }
+
+  const act = async (trader_id, action, e) => {
     const body = { trader_id, action }
     if (action==='reject') body.rejectionReason = rejectReason
+    if (action==='approve' && e) body.is_verified = !!e.is_verified
     const r = await fetch('/api/admin/action', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
     if (r.ok) { toast.success('Done'); load() } else { const j = await r.json().catch(()=>({})); toast.error(j.error || 'Failed') }
   }
@@ -51,13 +84,23 @@ export default function AdminPage(){
               <div>Assets: {p.assets?.join(', ')}</div>
               <div>Styles: {p.styles?.join(', ')}</div>
               <div>Experience: {p.experience_years} years • Risk: {p.risk_level}</div>
-              <div className="flex flex-col gap-2">
-                <div className="flex gap-2">
-                  <Button onClick={()=>act(p.id,'approve')}>Approve</Button>
-                  <Button variant="secondary" onClick={()=>act(p.id,'reject')}>Reject</Button>
-                </div>
-                <Input placeholder="Rejection reason (optional)" value={rejectReason} onChange={e=>setRejectReason(e.target.value)} />
+              <Editor item={p} onChange={(e)=>setEdits(s=>({ ...s, [p.id]: e }))} />
+              <div className="flex flex-wrap gap-2 pt-2">
+                <Button onClick={()=>saveEdits(p.id)}>Save edits</Button>
+                <Button onClick={()=>act(p.id,'approve', edits[p.id])}>Approve</Button>
+                <Button variant="secondary" onClick={()=>act(p.id,'reject')}>Reject</Button>
+                <Input className="flex-1" placeholder="Rejection reason (optional)" value={rejectReason} onChange={e=>setRejectReason(e.target.value)} />
               </div>
+              {(p.logs||[]).length>0 && (
+                <div className="text-xs text-muted-foreground border-t border-border pt-2">
+                  <div className="font-medium text-foreground mb-1">History</div>
+                  <ul className="list-disc pl-5">
+                    {p.logs.map((l,idx) => (
+                      <li key={idx}>{new Date(l.at).toLocaleString()} — {l.action}{l.reason?`: ${l.reason}`:''}{l.set?` (set: ${Object.keys(l.set).join(', ')})`:''}{l.edits?` (edited: ${Object.keys(l.edits).join(', ')})`:''}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </CardContent>
           </Card>
         ))}

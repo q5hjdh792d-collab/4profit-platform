@@ -6,7 +6,28 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
-import { Heart, Scale, RefreshCw } from 'lucide-react'
+import { RefreshCw } from 'lucide-react'
+
+function ListSkeleton(){
+  return (
+    <div className="grid md:grid-cols-3 gap-4">
+      {Array.from({length:6}).map((_,i)=>(
+        <div key={i} className="rounded-xl border border-border p-4 animate-pulse space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-muted" />
+            <div className="flex-1 space-y-2">
+              <div className="h-4 bg-muted rounded w-1/2" />
+              <div className="h-3 bg-muted rounded w-1/3" />
+            </div>
+          </div>
+          <div className="h-3 bg-muted rounded w-full" />
+          <div className="h-3 bg-muted rounded w-3/4" />
+          <div className="h-8 bg-muted rounded w-full" />
+        </div>
+      ))}
+    </div>
+  )
+}
 
 export default function TradersPage() {
   const [data, setData] = useState({ items: [], total: 0 })
@@ -43,13 +64,17 @@ export default function TradersPage() {
   }
 
   const toggleFav = async (trader) => {
+    // optimistic
+    setData(d=>({ ...d, items: d.items.map(x=> x.id===trader.id ? { ...x, _favorite: !x._favorite } : x ) }))
     const r = await fetch('/api/favorites/toggle', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trader_id: trader.id }) })
-    if (r.ok) { toast.success('Updated'); load() } else { toast.error('Failed') }
+    if (r.ok) { toast.success('Favorites updated') } else { toast.error('Failed'); load() }
   }
   const addCompare = async (trader) => {
+    if (trader._in_compare) return // already added
+    setData(d=>({ ...d, items: d.items.map(x=> x.id===trader.id ? { ...x, _in_compare: true } : x ) }))
     const r = await fetch('/api/compare/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trader_id: trader.id }) })
     const j = await r.json()
-    if (r.ok) { toast.success('Added to compare'); load() } else { toast.error(j.error || 'Failed') }
+    if (r.ok) { toast.success('Added to compare') } else { toast.error(j.error || 'Failed'); load() }
   }
 
   return (
@@ -75,7 +100,7 @@ export default function TradersPage() {
         <label className="flex items-center gap-2"><input type="checkbox" checked={filters.has_tradingview} onChange={e=>setFilters(s=>({...s, has_tradingview:e.target.checked}))}/> TradingView</label>
       </div>
 
-      {loading ? <p className="text-muted-foreground">Loading...</p> : (
+      {loading ? <ListSkeleton/> : (
         <div className="grid md:grid-cols-3 gap-4">
           {(data.items||[]).map((t) => {
             const now = Date.now()
