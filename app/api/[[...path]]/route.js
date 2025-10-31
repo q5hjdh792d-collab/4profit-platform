@@ -245,7 +245,10 @@ export async function GET(request) {
     return json({ ok: true })
   } catch (e) {
     console.error(e)
-    return json({ error: String(e.message || e) }, 500)
+    const msg = String(e?.message || e)
+    if (msg === 'Unauthorized') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (msg === 'Forbidden') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    return json({ error: msg }, 500)
   }
 }
 
