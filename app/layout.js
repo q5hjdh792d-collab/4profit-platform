@@ -2,7 +2,6 @@ import './globals.css'
 import { Inter } from 'next/font/google'
 import Link from 'next/link'
 import { ThemeProvider } from 'next-themes'
-import Link from 'next/link'
 import { Toaster } from '@/components/ui/sonner'
 import Disclaimer from '@/app/partials/Disclaimer'
 
