@@ -13,6 +13,8 @@ export const metadata = {
 }
 
 export default function RootLayout({ children }) {
+import Providers from './providers'
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.className} bg-background text-foreground`}>
