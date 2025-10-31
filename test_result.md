@@ -101,3 +101,171 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+## user_problem_statement: Build 4Profit MVP (Next.js + MongoDB) with directory of traders, auth (NextAuth credentials), contact request flow with credits and 7-day unmask, rate limit 5/hour. Seed demo data (10 traders, 2 investors, 1 admin).
+
+## backend:
+  - task: "Seed endpoint /api/seed"
+    implemented: true
+    working: false
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: false
+        -agent: "main"
+        -comment: "Implemented idempotent seed: users, trader_profiles, listings."
+  - task: "Auth: NextAuth credentials login"
+    implemented: true
+    working: false
+    file: "/app/app/api/auth/[...nextauth]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: false
+        -agent: "main"
+        -comment: "Credentials authorize compares bcrypt hash from users collection."
+  - task: "List traders GET /api/traders with masked contacts and ordering"
+    implemented: true
+    working: false
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: false
+        -agent: "main"
+        -comment: "Masks email/telegram unless investor has accepted request (opened_until>now)."
+  - task: "Trader profile GET /api/trader/[slug] masking logic"
+    implemented: true
+    working: false
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: false
+        -agent: "main"
+        -comment: "Unmasks if investor has accepted request window."
+  - task: "Contact request POST /api/contact/request with credits + rate limit"
+    implemented: true
+    working: false
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: false
+        -agent: "main"
+        -comment: "Ensures 3 credits/month; rate limits 5/hour; prevents duplicate pending/accepted."
+  - task: "Contact decision POST /api/contact/decision (trader/admin)"
+    implemented: true
+    working: false
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: false
+        -agent: "main"
+        -comment: "Accept sets opened_until+7d. Verifies ownership by trader."
+  - task: "My requests GET /api/my/requests"
+    implemented: true
+    working: false
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+        -working: false
+        -agent: "main"
+        -comment: "Investor sees own; Trader/Admin sees requests to their profiles."
+  - task: "Session GET /api/session"
+    implemented: true
+    working: false
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "low"
+    needs_retesting: true
+    status_history:
+        -working: false
+        -agent: "main"
+        -comment: "Returns session user with id/email/role."
+
+## frontend:
+  - task: "Home + layout + disclaimer + legal pages"
+    implemented: true
+    working: true
+    file: "/app/app/layout.js"
+    stuck_count: 0
+    priority: "low"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "Built minimal UI with dark theme and links."
+  - task: "Auth page (manual credentials form posts to NextAuth endpoints)"
+    implemented: true
+    working: false
+    file: "/app/app/auth/page.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: false
+        -agent: "main"
+        -comment: "Calls /api/auth/csrf + /api/auth/callback/credentials."
+  - task: "Traders directory page"
+    implemented: true
+    working: false
+    file: "/app/app/traders/page.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: false
+        -agent: "main"
+        -comment: "Lists traders with masked contacts by default, request contact button."
+  - task: "Trader profile page"
+    implemented: true
+    working: false
+    file: "/app/app/traders/[slug]/page.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: false
+        -agent: "main"
+        -comment: "Shows metrics, masked contacts."
+  - task: "Trader dashboard basic (accept/decline)"
+    implemented: true
+    working: false
+    file: "/app/app/dashboard/page.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+        -working: false
+        -agent: "main"
+        -comment: "Lists contact requests, lets trader accept/decline."
+
+## metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: false
+
+## test_plan:
+  current_focus:
+    - "Seed endpoint /api/seed"
+    - "Auth: NextAuth credentials login"
+    - "Contact flow: request + decision + unmask"
+  stuck_tasks:
+    - "Rate-limit validation alongside 3-credit cap (may hit credit limit first)"
+  test_all: false
+  test_priority: "high_first"
+
+## agent_communication:
+  -agent: "main"
+  -message: "Please run backend tests as per plan. Use flow: 1) GET /api/seed 2) Login investor1@4profit.dev/Passw0rd! via NextAuth credentials (fetch /api/auth/csrf -> post form to /api/auth/callback/credentials) 3) GET /api/traders (masked) 4) POST /api/contact/request with a trader_id from list 5) Login trader01@4profit.dev/Passw0rd! and call GET /api/my/requests then POST /api/contact/decision accept 6) Switch back to investor session and GET /api/trader/[slug] to verify unmask. Note: Rate limit is 5/hour but credits are 3/month; verify credit exhaustion returns 402. Cookies from NextAuth should maintain session across requests."
