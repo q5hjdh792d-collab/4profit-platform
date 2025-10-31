@@ -88,17 +88,17 @@ export default function SubmitPage(){
           <CardTitle>Links & Metrics</CardTitle>
         </CardHeader>
         <CardContent className="grid md:grid-cols-2 gap-3">
-          <Input placeholder="TradingView URL" value={form.links.tradingview} onChange={e=>setForm({...form, links:{...form.links, tradingview:e.target.value}})} />
-          <Input placeholder="Telegram handle (e.g., @name)" value={form.links.telegram} onChange={e=>setForm({...form, links:{...form.links, telegram:e.target.value}})} />
-          <Input placeholder="X/Twitter URL" value={form.links.x} onChange={e=>setForm({...form, links:{...form.links, x:e.target.value}})} />
-          <Input placeholder="YouTube URL" value={form.links.youtube} onChange={e=>setForm({...form, links:{...form.links, youtube:e.target.value}})} />
-          <Input placeholder="Website URL" value={form.links.website} onChange={e=>setForm({...form, links:{...form.links, website:e.target.value}})} />
-          <Input placeholder="Contact Email" value={form.links.email} onChange={e=>setForm({...form, links:{...form.links, email:e.target.value}})} />
-          <Input placeholder="CAGR %" value={form.metrics.cagr} onChange={e=>setForm({...form, metrics:{...form.metrics, cagr:e.target.value}})} />
-          <Input placeholder="Max Drawdown %" value={form.metrics.maxDrawdown} onChange={e=>setForm({...form, metrics:{...form.metrics, maxDrawdown:e.target.value}})} />
-          <Input placeholder="Win Rate %" value={form.metrics.winRate} onChange={e=>setForm({...form, metrics:{...form.metrics, winRate:e.target.value}})} />
+          <Input placeholder="https://tradingview.com/u/username" value={form.links.tradingview} onChange={e=>setForm({...form, links:{...form.links, tradingview:e.target.value}})} />
+          <Input placeholder="@handle" value={form.links.telegram} onChange={e=>setForm({...form, links:{...form.links, telegram:e.target.value}})} />
+          <Input placeholder="https://x.com/username" value={form.links.x} onChange={e=>setForm({...form, links:{...form.links, x:e.target.value}})} />
+          <Input placeholder="https://youtube.com/@channel" value={form.links.youtube} onChange={e=>setForm({...form, links:{...form.links, youtube:e.target.value}})} />
+          <Input placeholder="https://your-site.com" value={form.links.website} onChange={e=>setForm({...form, links:{...form.links, website:e.target.value}})} />
+          <Input placeholder="email@domain.com" value={form.links.email} onChange={e=>setForm({...form, links:{...form.links, email:e.target.value}})} />
+          <Input placeholder="CAGR % (required) *" value={form.metrics.cagr} onChange={e=>setForm({...form, metrics:{...form.metrics, cagr:e.target.value}})} />
+          <Input placeholder="Max Drawdown % *" value={form.metrics.maxDrawdown} onChange={e=>setForm({...form, metrics:{...form.metrics, maxDrawdown:e.target.value}})} />
+          <Input placeholder="Win Rate % *" value={form.metrics.winRate} onChange={e=>setForm({...form, metrics:{...form.metrics, winRate:e.target.value}})} />
           <Textarea placeholder="Case studies (one per line, up to 5)" className="md:col-span-2" value={form.caseStudies} onChange={e=>setForm({...form, caseStudies:e.target.value})} />
-          <label className="flex items-center gap-2 md:col-span-2 text-sm"><input type="checkbox" checked={form.consent} onChange={e=>setForm({...form, consent:e.target.checked})}/> I confirm information is accurate and agree to be listed.</label>
+          <label className="flex items-center gap-2 md:col-span-2 text-sm"><input type="checkbox" checked={form.consent} onChange={e=>setForm({...form, consent:e.target.checked})}/> I confirm information is accurate and agree to be listed. *</label>
           <div className="md:col-span-2"><Button onClick={onSubmit}>Submit for Review</Button></div>
         </CardContent>
       </Card>
