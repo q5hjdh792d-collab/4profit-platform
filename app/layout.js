@@ -27,6 +27,7 @@ export default function RootLayout({ children }) {
                     <Link href="/favorites" className="hover:underline">Favorites</Link>
                     <Link href="/pricing" className="hover:underline">Pricing</Link>
                     <Link href="/auth" className="hover:underline">Login</Link>
+                  <RoleChip />
                   </nav>
                 </div>
               </header>
