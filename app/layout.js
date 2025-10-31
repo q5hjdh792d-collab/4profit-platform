@@ -54,3 +54,13 @@ export default function RootLayout({ children }) {
     </html>
   )
 }
+
+function RoleChip() {
+  return (
+    <span suppressHydrationWarning className="text-xs bg-secondary text-secondary-foreground px-2 py-1 rounded-md">
+      {/* Will be hydrated client-side */}
+      <ClientRoleChip />
+    </span>
+  )
+}
+
