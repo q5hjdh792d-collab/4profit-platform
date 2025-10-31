@@ -18,6 +18,8 @@ export default function RootLayout({ children }) {
       <body className={`${inter.className} bg-background text-foreground`}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
           <Providers>
+          {/* Providers wraps SessionProvider to avoid client import in layout; we removed it for SSR safety */}
+
             <div className="min-h-screen flex flex-col">
               <header className="border-b border-border sticky top-0 z-30 backdrop-blur supports-[backdrop-filter]:bg-background/80">
                 <div className="container mx-auto flex items-center justify-between py-3">
