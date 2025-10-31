@@ -17,10 +17,22 @@ function Editor({ item, onChange }){
   useEffect(()=>{ onChange && onChange(local) },[local, onChange])
   return (
     <div className="grid md:grid-cols-2 gap-2">
-      <Input placeholder="Display name" value={local.displayName} onChange={e=>setLocal(s=>({...s, displayName:e.target.value}))} />
-      <Input placeholder="Risk level (low|medium|high)" value={local.riskLevel} onChange={e=>setLocal(s=>({...s, riskLevel:e.target.value}))} />
-      <Input placeholder="https://tradingview.com/u/username" value={local.links.tradingview} onChange={e=>setLocal(s=>({...s, links:{...s.links, tradingview:e.target.value}}))} />
-      <Input placeholder="@handle" value={local.links.telegram} onChange={e=>setLocal(s=>({...s, links:{...s.links, telegram:e.target.value}}))} />
+      <div>
+        <Input placeholder="Display name" value={local.displayName} onChange={e=>setLocal(s=>({...s, displayName:e.target.value}))} />
+        <div className="text-[10px] text-muted-foreground">Required on approval</div>
+      </div>
+      <div>
+        <Input placeholder="Risk level (low|medium|high)" value={local.riskLevel} onChange={e=>setLocal(s=>({...s, riskLevel:e.target.value}))} />
+        <div className="text-[10px] text-muted-foreground">One of low/medium/high</div>
+      </div>
+      <div>
+        <Input placeholder="https://tradingview.com/u/username" value={local.links.tradingview} onChange={e=>setLocal(s=>({...s, links:{...s.links, tradingview:e.target.value}}))} />
+        <div className="text-[10px] text-muted-foreground">Must start with http</div>
+      </div>
+      <div>
+        <Input placeholder="@handle" value={local.links.telegram} onChange={e=>setLocal(s=>({...s, links:{...s.links, telegram:e.target.value}}))} />
+        <div className="text-[10px] text-muted-foreground">Format @handle</div>
+      </div>
       <Input placeholder="https://x.com/username" value={local.links.x} onChange={e=>setLocal(s=>({...s, links:{...s.links, x:e.target.value}}))} />
       <Input placeholder="https://youtube.com/@channel" value={local.links.youtube} onChange={e=>setLocal(s=>({...s, links:{...s.links, youtube:e.target.value}}))} />
       <Input placeholder="https://your-site.com" value={local.links.website} onChange={e=>setLocal(s=>({...s, links:{...s.links, website:e.target.value}}))} />
@@ -35,6 +47,7 @@ export default function AdminPage(){
   const [items, setItems] = useState([])
   const [rejectReason, setRejectReason] = useState('')
   const [edits, setEdits] = useState({})
+  const [settings, setSettings] = useState({ monthly_free_credits: 3 })
 
   const load = async () => {
     const s = await fetch('/api/session', { cache: 'no-store' }).then(r=>r.json())
@@ -43,6 +56,10 @@ export default function AdminPage(){
       const r = await fetch('/api/admin/pending', { cache: 'no-store' })
       const j = await r.json()
       setItems(j.items||[])
+      if (s.user?.role === 'admin') {
+        const sr = await fetch('/api/admin/settings').then(r=>r.json())
+        setSettings(sr.settings)
+      }
     }
   }
   useEffect(()=>{ load() },[])
@@ -63,14 +80,30 @@ export default function AdminPage(){
     if (r.ok) { toast.success('Done'); load() } else { const j = await r.json().catch(()=>({})); toast.error(j.error || 'Failed') }
   }
 
+  const saveListing = async (trader_id, listing) => {
+    const r = await fetch('/api/admin/listing', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ trader_id, ...listing }) })
+    if (r.ok) { toast.success('Listing updated'); load() } else { toast.error('Failed') }
+  }
+
+  const saveSettings = async () => {
+    const r = await fetch('/api/admin/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ monthly_free_credits: settings.monthly_free_credits }) })
+    if (r.ok) toast.success('Settings saved'); else toast.error('Failed')
+  }
+
   if (!role) return <div className="container mx-auto py-8">Loading...</div>
   if (!(role==='admin' || role==='mod')) return <div className="container mx-auto py-8">Access denied</div>
 
   return (
-    <div className="container mx-auto py-8 space-y-6">
+    <div className="container mx-auto py-8 space-y-8">
       <h1 className="text-2xl font-semibold flex items-center gap-2">Moderation Queue <span className="text-xs bg-secondary px-2 py-1 rounded-md">Pending ({items.length})</span></h1>
       <div className="grid md:grid-cols-2 gap-4">
-        {items.map(p => (
+        {items.map(p => {
+          const boosted = p.listing?.boosted_until && new Date(p.listing.boosted_until) > new Date()
+          const orderingKey = `${boosted?'1':'0'}-${p.listing?.is_pro?'1':'0'}-${p.is_verified?'1':'0'}-${new Date(p.created_at).getTime()}`
+          const [isPro, setIsPro] = useState(!!p.listing?.is_pro)
+          const [boostUntil, setBoostUntil] = useState(p.listing?.boosted_until ? new Date(p.listing.boosted_until).toISOString().slice(0,16) : '')
+          const quick7d = () => setBoostUntil(new Date(Date.now()+7*24*3600*1000).toISOString().slice(0,16))
+          return (
           <Card key={p.id}>
             <CardHeader>
               <CardTitle className="flex items-center gap-3">
@@ -81,10 +114,18 @@ export default function AdminPage(){
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
-              <div>Assets: {p.assets?.join(', ')}</div>
-              <div>Styles: {p.styles?.join(', ')}</div>
-              <div>Experience: {p.experience_years} years • Risk: {p.risk_level}</div>
+              <div>Assets: {p.assets?.join(', ')} • Styles: {p.styles?.join(', ')} • Exp: {p.experience_years}y • Risk: {p.risk_level}</div>
               <Editor item={p} onChange={(e)=>setEdits(s=>({ ...s, [p.id]: e }))} />
+              <div className="border-t border-border pt-2 space-y-2">
+                <div className="text-xs font-medium">Listing Controls</div>
+                <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={isPro} onChange={e=>setIsPro(e.target.checked)} /> Pro</label>
+                <div className="flex items-center gap-2">
+                  <input type="datetime-local" className="px-2 py-1 rounded-md bg-secondary" value={boostUntil} onChange={e=>setBoostUntil(e.target.value)} />
+                  <Button size="sm" variant="secondary" onClick={quick7d}>+7d</Button>
+                  <Button size="sm" onClick={()=>saveListing(p.id, { is_pro: isPro, boosted_until: boostUntil ? new Date(boostUntil).toISOString() : null })}>Save Listing</Button>
+                </div>
+                <div className="text-[10px] text-muted-foreground">Ordering key: {orderingKey}</div>
+              </div>
               <div className="flex flex-wrap gap-2 pt-2">
                 <Button onClick={()=>saveEdits(p.id)}>Save edits</Button>
                 <Button onClick={()=>act(p.id,'approve', edits[p.id])}>Approve</Button>
@@ -103,8 +144,26 @@ export default function AdminPage(){
               )}
             </CardContent>
           </Card>
-        ))}
+        )})}
       </div>
+
+      {role==='admin' && (
+        <Card>
+          <CardHeader><CardTitle>Settings</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            <label className="text-sm">Monthly free contact credits</label>
+            <input type="number" min={0} className="px-3 py-2 rounded-md bg-secondary" value={settings.monthly_free_credits} onChange={e=>setSettings(s=>({...s, monthly_free_credits: Number(e.target.value||0)}))} />
+            <div className="flex gap-2 pt-2">
+              <Button onClick={saveSettings}>Save Settings</Button>
+              <Button variant="secondary" onClick={async ()=>{
+                const r = await fetch('/api/ops/reset-credits')
+                if (r.ok) toast.success('Reset triggered')
+                else toast.error('Reset failed')
+              }}>Run Monthly Reset</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

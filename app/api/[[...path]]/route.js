@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs'
 import { getDb } from '@/app/lib/db'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/lib/auth'
+import { sendMail } from '@/app/lib/mailer'
 
 function json(data, init = 200) {
   return NextResponse.json(data, { status: typeof init === 'number' ? init : 200, headers: { 'Cache-Control': 'no-store' } })
@@ -21,17 +22,23 @@ function maskContact(text = '') {
   return text.slice(0, 2) + '***' + text.slice(-1)
 }
 
-async function ensureMonthlyCredits(db, investorId, monthly = 3) {
+async function getSettings(db) {
+  const s = await db.collection('settings').findOne({ key: 'global' })
+  return { monthly_free_credits: s?.monthly_free_credits ?? 3 }
+}
+
+async function ensureMonthlyCredits(db, investorId) {
+  const { monthly_free_credits } = await getSettings(db)
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
   let doc = await db.collection('contact_credits').findOne({ user_id: investorId })
   if (!doc) {
-    doc = { user_id: investorId, credits_total: monthly, credits_used: 0, period_start: startOfMonth }
+    doc = { user_id: investorId, credits_total: monthly_free_credits, credits_used: 0, period_start: startOfMonth }
     await db.collection('contact_credits').insertOne(doc)
     return doc
   }
   if (!doc.period_start || new Date(doc.period_start) < startOfMonth) {
-    await db.collection('contact_credits').updateOne({ user_id: investorId }, { $set: { credits_total: monthly, credits_used: 0, period_start: startOfMonth } })
+    await db.collection('contact_credits').updateOne({ user_id: investorId }, { $set: { credits_total: monthly_free_credits, credits_used: 0, period_start: startOfMonth } })
     doc = await db.collection('contact_credits').findOne({ user_id: investorId })
   }
   return doc
@@ -56,7 +63,12 @@ export async function GET(request) {
     const pathname = url.pathname.replace('/api', '')
     const db = await getDb()
 
+    if (pathname === '/health') {
+      return json({ ok: true, ts: new Date().toISOString() })
+    }
+
     if (pathname === '/seed') {
+      if (process.env.SEED_ENABLED === 'false') return json({ error: 'Seed disabled' }, 403)
       const seededFlag = await db.collection('meta').findOne({ key: 'seed_v1' })
       if (seededFlag) return json({ ok: true, seeded: false })
 
@@ -195,7 +207,6 @@ export async function GET(request) {
       const prof = await db.collection('trader_profiles').findOne({ slug })
       if (!prof) return json({ error: 'Not found' }, 404)
       const user = await getSessionUser()
-      // increment views if viewer is not owner
       if (!user || user.id !== prof.user_id) {
         await db.collection('trader_profiles').updateOne({ id: prof.id }, { $inc: { views: 1 } })
         prof.views = (prof.views || 0) + 1
@@ -213,7 +224,6 @@ export async function GET(request) {
 
     if (pathname === '/admin/pending') {
       const me = await requireAuth(['admin','mod'])
-      const now = new Date()
       const items = await db.collection('trader_profiles').aggregate([
         { $match: { status: 'pending' } },
         { $lookup: { from: 'moderation_logs', let: { t_id: '$id' }, pipeline: [
@@ -221,9 +231,17 @@ export async function GET(request) {
           { $sort: { at: -1 } },
           { $limit: 3 }
         ], as: 'logs' } },
+        { $lookup: { from: 'listings', localField: 'id', foreignField: 'trader_id', as: 'listing' } },
+        { $addFields: { listing: { $first: '$listing' } } },
         { $sort: { created_at: -1 } }
       ]).toArray()
       return json({ items })
+    }
+
+    if (pathname === '/admin/settings') {
+      const me = await requireAuth(['admin'])
+      const s = await db.collection('settings').findOne({ key: 'global' })
+      return json({ settings: { monthly_free_credits: s?.monthly_free_credits ?? 3 } })
     }
 
     if (pathname === '/favorites') {
@@ -280,9 +298,12 @@ export async function GET(request) {
       return json({ profile: { id: prof.id, slug: prof.slug, status: prof.status, views: prof.views||0 }, stats: { views: prof.views||0, pending, accepted, declined }, recent: recentView })
     }
 
-    if (pathname === '/session') {
-      const user = await getSessionUser()
-      return json({ user })
+    if (pathname === '/ops/reset-credits') {
+      const me = await requireAuth(['admin'])
+      const now = new Date()
+      const cutoff = new Date(now.getTime() - 30 * 24 * 3600 * 1000)
+      const updated = await db.collection('contact_credits').updateMany({ period_start: { $lte: cutoff } }, { $set: { credits_used: 0, period_start: now } })
+      return json({ ok: true, updated: updated.modifiedCount })
     }
 
     return json({ ok: true })
@@ -310,7 +331,7 @@ export async function POST(request) {
       const recent = await db.collection('contact_requests').countDocuments({ investor_id: me.id, created_at: { $gt: oneHourAgo } })
       if (recent >= 5) return json({ error: 'Rate limit: max 5 per hour' }, 429)
 
-      const credits = await ensureMonthlyCredits(db, me.id, 3)
+      const credits = await ensureMonthlyCredits(db, me.id)
       if (credits.credits_used >= credits.credits_total) return json({ error: 'No credits left' }, 402)
 
       const existing = await db.collection('contact_requests').findOne({ investor_id: me.id, trader_id, status: { $in: ['pending','accepted'] } })
@@ -319,6 +340,16 @@ export async function POST(request) {
       const reqDoc = { id: uuidv4(), trader_id, investor_id: me.id, status: 'pending', opened_until: null, created_at: new Date() }
       await db.collection('contact_requests').insertOne(reqDoc)
       await db.collection('contact_credits').updateOne({ user_id: me.id }, { $inc: { credits_used: 1 } }, { upsert: true })
+
+      // notify trader
+      try {
+        const traderProfile = await db.collection('trader_profiles').findOne({ id: trader_id })
+        const traderUser = await db.collection('users').findOne({ id: traderProfile.user_id })
+        const subj = '4Profit: New contact request'
+        const html = `<div style="font-family:sans-serif"><h2>New contact request</h2><p>Investor: ${me.email}</p><p>Profile: ${traderProfile.name}</p></div>`
+        await sendMail(traderUser.email, subj, html)
+      } catch (err) { console.log('notify trader skipped', err?.message) }
+
       return json({ ok: true, request: reqDoc })
     }
 
@@ -337,6 +368,15 @@ export async function POST(request) {
       } else {
         await db.collection('contact_requests').updateOne({ id: request_id }, { $set: { status: 'declined' } })
       }
+
+      // notify investor
+      try {
+        const investor = await db.collection('users').findOne({ id: reqDoc.investor_id })
+        const subj = `4Profit: Your request was ${accept ? 'accepted' : 'declined'}`
+        const html = `<div style="font-family:sans-serif"><h2>Request ${accept ? 'accepted' : 'declined'}</h2><p>Trader: ${prof.name}</p></div>`
+        await sendMail(investor.email, subj, html)
+      } catch (err) { console.log('notify investor skipped', err?.message) }
+
       return json({ ok: true })
     }
 
@@ -415,6 +455,24 @@ export async function POST(request) {
         return json({ ok: true })
       }
       return json({ error: 'Unknown action' }, 400)
+    }
+
+    if (pathname === '/admin/listing') {
+      const me = await requireAuth(['admin'])
+      const { trader_id, is_pro, boosted_until } = await request.json()
+      const set = { updated_at: new Date() }
+      if (typeof is_pro !== 'undefined') set.is_pro = !!is_pro
+      if (typeof boosted_until !== 'undefined') set.boosted_until = boosted_until ? new Date(boosted_until) : null
+      await db.collection('listings').updateOne({ trader_id }, { $set: set }, { upsert: true })
+      await db.collection('moderation_logs').insertOne({ id: uuidv4(), trader_id, moderator_id: me.id, action: 'listing', edits: set, at: new Date() })
+      return json({ ok: true })
+    }
+
+    if (pathname === '/admin/settings') {
+      const me = await requireAuth(['admin'])
+      const { monthly_free_credits } = await request.json()
+      await db.collection('settings').updateOne({ key: 'global' }, { $set: { key: 'global', monthly_free_credits: Number(monthly_free_credits || 3) } }, { upsert: true })
+      return json({ ok: true })
     }
 
     if (pathname === '/favorites/toggle') {
