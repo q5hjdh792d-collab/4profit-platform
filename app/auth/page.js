@@ -9,7 +9,14 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
 
-export default function AuthPage() { return (<Providers>
+export default function AuthPage() { 
+  return (
+  <Providers>
+    <Content/>
+  </Providers>
+)}
+
+function Content(){
   const { data: session } = useSession()
   const [email, setEmail] = useState('investor1@4profit.dev')
   const [password, setPassword] = useState('Passw0rd!')
