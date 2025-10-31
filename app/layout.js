@@ -12,8 +12,6 @@ export const metadata = {
   description: 'Marketplace directory where investors discover traders via transparent profiles and filters.'
 }
 
-import Providers from '@/app/providers'
-
 export default function RootLayout({ children }) {
 
   return (
