@@ -15,6 +15,8 @@ export const metadata = {
 export default function RootLayout({ children }) {
 
   return (
+        {/* Session provider is handled per-page to avoid module resolution issues */}
+
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.className} bg-background text-foreground`}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
