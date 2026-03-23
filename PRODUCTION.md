@@ -1,13 +1,17 @@
-# 4Profit Production Guide
+# 4BASE Production Guide
 
 ## Required ENV
-- MONGO_URL
+- MONGO_URL or MONGODB_URI
 - DB_NAME
 - NEXTAUTH_URL
 - NEXTAUTH_SECRET
 - RESEND_API_KEY (Resend.com API key)
-- EMAIL_FROM (e.g., "4Profit <noreply@4profit.dev>")
+- EMAIL_FROM (e.g., "4BASE <noreply@4profit.dev>")
 - SEED_ENABLED=false (disable /api/seed in production)
+Optional (Supabase setup only):
+- NEXT_PUBLIC_SUPABASE_URL
+- NEXT_PUBLIC_SUPABASE_ANON_KEY
+- SUPABASE_SERVICE_ROLE_KEY
 
 ## Healthcheck
 - GET /api/health → { ok: true, ts }
@@ -23,7 +27,7 @@
 ## Monthly Credits Reset
 - Endpoint: GET /api/ops/reset-credits (admin only)
 - Idempotent: resets credits_used=0 and period_start=now if period_start older than ~30 days
-- Cron example (adjust domain, ensure auth cookie or run internally):
+- Cron example (adjust domain):
   curl -s https://your-domain/api/ops/reset-credits
 
 ## Listing Controls
@@ -32,9 +36,9 @@
 
 ## Email Notifications
 - Provider: Resend
-- EMAIL_FROM must use a verified domain 
+- EMAIL_FROM must use a verified domain
 - Events:
-  - contact-created → Subject: "New contact request on 4Profit"
+  - contact-created → Subject: "New contact request on 4Profit" (branding can be adjusted)
   - contact-accepted → Subject: "Your contact request was accepted"
   - contact-declined → Subject: "Your contact request was declined"
 
