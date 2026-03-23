@@ -1,51 +1,38 @@
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
+import FounderCard from '@/app/components/FounderCard'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 
 export default async function HomePage() {
   return (
     <div className="container mx-auto py-12 space-y-12">
-      <section className="text-center space-y-4">
-        <h1 className="text-4xl md:text-5xl font-bold tracking-tight">Discover proven traders. Decide with transparency.</h1>
-        <p className="text-muted-foreground max-w-2xl mx-auto">4Profit is a marketplace directory where investors find traders via clear profiles, filters and reputation. No brokerage integrations. No custody. No investment advice.</p>
-        <div className="flex justify-center gap-3">
-          <Button asChild>
-            <Link href="/traders">Browse Traders</Link>
-          </Button>
-          <Button variant="secondary" asChild>
-            <Link href="/submit">Add Trader</Link>
-          </Button>
-        </div>
+      <section className="space-y-2 text-center">
+        <h1 className="text-4xl md:text-5xl font-bold tracking-tight">4BASE</h1>
+        <p className="text-slate-600">by ALVO13</p>
       </section>
 
       <section>
-        <h2 className="text-xl font-semibold mb-4">How it works</h2>
         <div className="grid md:grid-cols-3 gap-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>1. Explore</CardTitle>
-            </CardHeader>
-            <CardContent className="text-muted-foreground">Use filters by assets, style, languages, experience and more.</CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>2. Request contact</CardTitle>
-            </CardHeader>
-            <CardContent className="text-muted-foreground">Investors have 3 free contact credits per month. Traders accept or decline.</CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>3. Decide</CardTitle>
-            </CardHeader>
-            <CardContent className="text-muted-foreground">If accepted, contact details are unmasked for 7 days to continue the conversation.</CardContent>
-          </Card>
+          {/* Pinned Founder Card (top-left) */}
+          <div className="md:col-span-1 order-1">
+            <FounderCard />
+          </div>
+          {/* Other bento cards */}
+          <div className="order-2">
+            <div className="rounded-2xl border border-slate-400/50 bg-black/20 p-5 backdrop-blur">
+              <div className="text-sm text-slate-700">Explore traders</div>
+              <div className="mt-3 text-slate-900">Filter by assets, style, languages, experience and more.</div>
+              <div className="mt-4"><Button asChild variant="secondary"><Link href="/traders">Browse Traders</Link></Button></div>
+            </div>
+          </div>
+          <div className="order-3">
+            <div className="rounded-2xl border border-slate-400/50 bg-black/20 p-5 backdrop-blur">
+              <div className="text-sm text-slate-700">Request contact</div>
+              <div className="mt-3 text-slate-900">Investors have monthly credits. Traders accept or decline.</div>
+              <div className="mt-4"><Button asChild variant="secondary"><Link href="/pricing">See Plans</Link></Button></div>
+            </div>
+          </div>
         </div>
-      </section>
-
-      <section className="text-center">
-        <Button asChild variant="secondary">
-          <Link href="/traders">Start browsing</Link>
-        </Button>
       </section>
     </div>
   )

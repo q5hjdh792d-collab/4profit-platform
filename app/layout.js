@@ -9,20 +9,23 @@ import RoleChip from '@/app/partials/RoleChip'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata = {
-  title: '4Profit — Find Traders, Transparently',
-  description: 'Marketplace directory where investors discover traders via transparent profiles and filters.'
+  title: '4BASE — by ALVO13',
+  description: '4BASE.PRO — marketplace directory where investors discover traders via transparent profiles and filters. by ALVO13'
 }
 
 export default function RootLayout({ children }) {
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} bg-background text-foreground`}>
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+      <body className={`${inter.className} bg-gradient-to-br from-slate-200 to-slate-300 text-slate-900`}>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
             <div className="min-h-screen flex flex-col">
-              <header className="border-b border-border sticky top-0 z-30 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+              <header className="border-b border-slate-400/40 sticky top-0 z-30 backdrop-blur supports-[backdrop-filter]:bg-white/50">
                 <div className="container mx-auto flex items-center justify-between py-3">
-                  <Link href="/" className="font-semibold text-lg">4Profit</Link>
+                  <Link href="/" className="font-semibold text-lg tracking-tight flex items-center gap-2">
+                    <span>4BASE</span>
+                    <span className="text-xs text-slate-600 border-l pl-2">by ALVO13</span>
+                  </Link>
                   <nav className="flex items-center gap-4 text-sm">
                     <Link href="/traders" className="hover:underline">Traders</Link>
                     <Link href="/favorites" className="hover:underline">Favorites</Link>
@@ -37,9 +40,9 @@ export default function RootLayout({ children }) {
 
               <main className="flex-1">{children}</main>
 
-              <footer className="border-t border-border py-8 mt-12">
+              <footer className="border-t border-slate-400/40 py-8 mt-12">
                 <div className="container mx-auto text-sm flex flex-wrap gap-4 items-center justify-between">
-                  <p className="text-muted-foreground">© {new Date().getFullYear()} 4Profit</p>
+                  <p className="text-slate-600">© {new Date().getFullYear()} 4BASE • by ALVO13</p>
                   <div className="flex gap-4">
                     <Link href="/legal/terms" className="hover:underline">Terms</Link>
                     <Link href="/legal/privacy" className="hover:underline">Privacy</Link>
