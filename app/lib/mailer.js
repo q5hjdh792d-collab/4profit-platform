@@ -8,7 +8,7 @@ export async function sendMail(to, subject, html) {
       console.log('RESEND_API_KEY not configured; skipping send')
       return false
     }
-    const from = process.env.EMAIL_FROM || '4Profit <noreply@4profit.dev>'
+    const from = process.env.EMAIL_FROM || '4BASE <noreply@4base.pro>'
     const { data, error } = await resend.emails.send({ from, to, subject, html })
     if (error) {
       console.log('resend error', error)

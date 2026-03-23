@@ -22,8 +22,8 @@ export default function RootLayout({ children }) {
             <div className="min-h-screen flex flex-col">
               <header className="border-b border-slate-400/40 sticky top-0 z-30 backdrop-blur supports-[backdrop-filter]:bg-white/50">
                 <div className="container mx-auto flex items-center justify-between py-3">
-                  <Link href="/" className="font-semibold text-lg tracking-tight flex items-center gap-2">
-                    <span>4BASE</span>
+                  <Link href="/" className="font-semibold text-lg flex items-center gap-2">
+                    <span className="tracking-tighter">4BASE</span>
                     <span className="text-xs text-slate-600 border-l pl-2">by ALVO13</span>
                   </Link>
                   <nav className="flex items-center gap-4 text-sm">

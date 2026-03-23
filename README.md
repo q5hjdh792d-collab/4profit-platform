@@ -16,7 +16,7 @@ Required:
 - NEXTAUTH_SECRET
 - NEXTAUTH_URL
 - RESEND_API_KEY (for emails)
-- EMAIL_FROM (e.g., "4BASE <noreply@4profit.dev>")
+- EMAIL_FROM (e.g., "4BASE <noreply@4base.pro>")
 Recommended/Prod:
 - SEED_ENABLED=false (disables /api/seed)
 Optional (Supabase):
@@ -31,10 +31,10 @@ Optional (Supabase):
 ## Seeding & Roles (non‑prod only)
 - Seed once: open /api/seed (idempotent; disabled in prod if SEED_ENABLED=false)
 - Accounts:
-  - admin@4base.pro / Passw0rd! (admin)
-  - investor1@4base.pro / Passw0rd! (investor)
-  - investor2@4base.pro / Passw0rd! (investor)
-  - trader01..10@4base.pro / Passw0rd! (trader)
+  - admin@4profit.dev / Passw0rd! (admin)
+  - investor1@4profit.dev / Passw0rd! (investor)
+  - investor2@4profit.dev / Passw0rd! (investor)
+  - trader01..10@4profit.dev / Passw0rd! (trader)
 
 ## Core Routes
 - /traders — directory (badges + ordering: BOOST → PRO → VERIFIED → others)
@@ -70,7 +70,7 @@ Optional (Supabase):
    - NEXTAUTH_SECRET=<strong secret>
    - NEXTAUTH_URL=<your Vercel URL>
    - RESEND_API_KEY=<your Resend key>
-   - EMAIL_FROM="4BASE <noreply@4profit.dev>"
+   - EMAIL_FROM="4BASE <noreply@4base.pro>"
    - SEED_ENABLED=false (recommended)
 3. Deploy
 

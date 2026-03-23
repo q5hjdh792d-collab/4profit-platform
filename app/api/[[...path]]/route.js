@@ -345,7 +345,7 @@ export async function POST(request) {
       try {
         const traderProfile = await db.collection('trader_profiles').findOne({ id: trader_id })
         const traderUser = await db.collection('users').findOne({ id: traderProfile.user_id })
-        const subj = 'New contact request on 4Profit'
+        const subj = 'New contact request on 4BASE'
         const html = `<div style="font-family:sans-serif"><h2>New contact request</h2><p>Investor: ${me.email}</p><p>Profile: ${traderProfile.name}</p></div>`
         await sendMail(traderUser.email, subj, html)
       } catch (err) { console.log('notify trader skipped', err?.message) }
