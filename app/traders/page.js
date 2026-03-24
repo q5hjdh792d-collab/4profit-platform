@@ -6,52 +6,38 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
-import { RefreshCw } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 
-function ListSkeleton(){
-  return (
-    <div className="grid md:grid-cols-3 gap-4">
-      {Array.from({length:6}).map((_,i)=>(
-        <div key={i} className="rounded-xl border border-border p-4 animate-pulse space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-muted" />
-            <div className="flex-1 space-y-2">
-              <div className="h-4 bg-muted rounded w-1/2" />
-              <div className="h-3 bg-muted rounded w-1/3" />
-            </div>
-          </div>
-          <div className="h-3 bg-muted rounded w-full" />
-          <div className="h-3 bg-muted rounded w-3/4" />
-          <div className="h-8 bg-muted rounded w-full" />
-        </div>
-      ))}
-    </div>
-  )
-}
+const chips = [
+  { key:'all', label:'All' },
+  { key:'crypto', label:'Crypto' },
+  { key:'stocks', label:'Stocks' },
+  { key:'high', label:'High Yield' },
+]
 
 export default function TradersPage() {
   const [data, setData] = useState({ items: [], total: 0 })
   const [loading, setLoading] = useState(true)
-  const [filters, setFilters] = useState({ assets: '', styles: '', languages: '', risk_level: '', experience_min: '', experience_max: '', has_youtube: false, has_telegram: false, has_tradingview: false })
-
-  const qs = useMemo(() => {
-    const q = new URLSearchParams()
-    Object.entries(filters).forEach(([k,v]) => {
-      if (v === true) q.set(k, '1')
-      else if (v) q.set(k, String(v))
-    })
-    return q.toString()
-  }, [filters])
+  const [active, setActive] = useState('all')
 
   const load = async () => {
     setLoading(true)
-    const res = await fetch('/api/traders' + (qs ? `?${qs}` : ''))
+    const res = await fetch('/api/traders')
     const json = await res.json()
     setData(json)
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [qs])
+  useEffect(() => { load() }, [])
+
+  const filtered = useMemo(() => {
+    const items = data.items || []
+    if (active === 'all') return items
+    if (active === 'crypto') return items.filter(t => (t.assets||[]).map(a=>String(a).toLowerCase()).includes('crypto'))
+    if (active === 'stocks') return items.filter(t => (t.assets||[]).map(a=>String(a).toLowerCase()).includes('stocks'))
+    if (active === 'high') return items.filter(t => (t.risk_level==='high') || (Number(t.metrics?.CAGR||0) >= 30))
+    return items
+  }, [data.items, active])
 
   const requestContact = async (trader) => {
     const res = await fetch('/api/contact/request', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trader_id: trader.id }) })
@@ -63,86 +49,59 @@ export default function TradersPage() {
     }
   }
 
-  const toggleFav = async (trader) => {
-    // optimistic
-    setData(d=>({ ...d, items: d.items.map(x=> x.id===trader.id ? { ...x, _favorite: !x._favorite } : x ) }))
-    const r = await fetch('/api/favorites/toggle', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trader_id: trader.id }) })
-    if (r.ok) { toast.success('Favorites updated') } else { toast.error('Failed'); load() }
-  }
-  const addCompare = async (trader) => {
-    if (trader._in_compare) return // already added
-    setData(d=>({ ...d, items: d.items.map(x=> x.id===trader.id ? { ...x, _in_compare: true } : x ) }))
-    const r = await fetch('/api/compare/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trader_id: trader.id }) })
-    const j = await r.json()
-    if (r.ok) { toast.success('Added to compare') } else { toast.error(j.error || 'Failed'); load() }
-  }
+  const glassStyle = { boxShadow: 'inset 0 0 10px rgba(255,255,255,0.05)' }
 
   return (
-    <div className="container mx-auto py-8 space-y-6">
+    <div className="container mx-auto py-12 space-y-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Traders</h1>
+        <h1 className="text-2xl font-black tracking-tighter">Traders</h1>
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={load}><RefreshCw className="w-4 h-4"/> Refresh</Button>
-          <Link className="text-sm underline" href="/compare">Compare</Link>
-          <Link className="text-sm underline" href="/favorites">Favorites</Link>
+          <Button onClick={load} variant="secondary">Refresh</Button>
         </div>
       </div>
 
-      <div className="grid md:grid-cols-6 gap-2 text-sm">
-        <input placeholder="assets=stocks,crypto" className="px-3 py-2 rounded-md bg-secondary" value={filters.assets} onChange={e=>setFilters(s=>({...s, assets:e.target.value}))}/>
-        <input placeholder="styles=intraday" className="px-3 py-2 rounded-md bg-secondary" value={filters.styles} onChange={e=>setFilters(s=>({...s, styles:e.target.value}))}/>
-        <input placeholder="languages=en,ru" className="px-3 py-2 rounded-md bg-secondary" value={filters.languages} onChange={e=>setFilters(s=>({...s, languages:e.target.value}))}/>
-        <input placeholder="risk=low|medium|high" className="px-3 py-2 rounded-md bg-secondary" value={filters.risk_level} onChange={e=>setFilters(s=>({...s, risk_level:e.target.value}))}/>
-        <input placeholder="exp_min" className="px-3 py-2 rounded-md bg-secondary" value={filters.experience_min} onChange={e=>setFilters(s=>({...s, experience_min:e.target.value}))}/>
-        <input placeholder="exp_max" className="px-3 py-2 rounded-md bg-secondary" value={filters.experience_max} onChange={e=>setFilters(s=>({...s, experience_max:e.target.value}))}/>
-        <label className="flex items-center gap-2"><input type="checkbox" checked={filters.has_telegram} onChange={e=>setFilters(s=>({...s, has_telegram:e.target.checked}))}/> Telegram</label>
-        <label className="flex items-center gap-2"><input type="checkbox" checked={filters.has_youtube} onChange={e=>setFilters(s=>({...s, has_youtube:e.target.checked}))}/> YouTube</label>
-        <label className="flex items-center gap-2"><input type="checkbox" checked={filters.has_tradingview} onChange={e=>setFilters(s=>({...s, has_tradingview:e.target.checked}))}/> TradingView</label>
+      <div className="flex gap-3">
+        {chips.map(c => (
+          <button key={c.key} onClick={()=>setActive(c.key)} className={`px-3 py-1 rounded-full text-sm border ${active===c.key?'bg-slate-900 text-white border-slate-900':'bg-white/40 border-slate-300 text-slate-700'} backdrop-blur-xl`}>{c.label}</button>
+        ))}
       </div>
 
-      {loading ? <ListSkeleton/> : (
-        <div className="grid md:grid-cols-3 gap-4">
-          {(data.items||[]).map((t) => {
-            const now = Date.now()
-            const boosted = t.listing?.boosted_until && new Date(t.listing.boosted_until).getTime() > now
-            const pro = !!t.listing?.is_pro
-            const verified = !!t.is_verified
-            return (
-            <Card key={t.id} className="hover:shadow-lg transition">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-3">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={t.avatar} alt={t.name} className="w-12 h-12 rounded-full object-cover" />
-                  <div className="flex-1">
-                    <Link href={`/traders/${t.slug}`} className="hover:underline">{t.name}</Link>
-                    <div className="text-xs text-muted-foreground">{t.country} • {t.experience_years}y • {t.risk_level}</div>
-                    <div className="flex gap-2 mt-1">
-                      {boosted && <Badge variant="default">BOOST</Badge>}
-                      {pro && <Badge variant="secondary">PRO</Badge>}
-                      {verified && <Badge>VERIFIED</Badge>}
+      {loading ? <p className="text-muted-foreground">Loading...</p> : (
+        <div className="grid md:grid-cols-3 gap-6 md:gap-8">
+          <AnimatePresence mode="popLayout">
+            {(filtered||[]).map((t) => (
+              <motion.div key={t.id} layout initial={{opacity:0, scale:0.98}} animate={{opacity:1, scale:1}} exit={{opacity:0, scale:0.98}} transition={{duration:0.2}}>
+                <Card className="hover:shadow-lg transition border-slate-300/60 bg-black/30 backdrop-blur-xl" style={glassStyle}>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-3">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={t.avatar} alt={t.name} className="w-12 h-12 rounded-full object-cover" />
+                      <div className="flex-1">
+                        <Link href={`/traders/${t.slug}`} className="hover:underline font-semibold tracking-tight">{t.name}</Link>
+                        <div className="text-xs text-muted-foreground">{t.country} • {t.experience_years}y • {t.risk_level}</div>
+                        <div className="flex gap-2 mt-1">
+                          {t.listing?.boosted_until && new Date(t.listing.boosted_until) > new Date() && <Badge variant="default">BOOST</Badge>}
+                          {t.listing?.is_pro && <Badge variant="secondary">PRO</Badge>}
+                          {t.is_verified && <Badge>VERIFIED</Badge>}
+                        </div>
+                      </div>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex flex-wrap gap-2">
+                      {(t.assets||[]).map(a => <Badge key={a} variant="secondary">{a}</Badge>)}
+                      {(t.styles||[]).map(s => <Badge key={s}>{s}</Badge>)}
                     </div>
-                  </div>
-                  <button title="Favorite" onClick={()=>toggleFav(t)} className={`p-2 rounded-md ${t._favorite ? 'text-red-500' : 'text-muted-foreground hover:text-foreground'}`}>♥</button>
-                  <button title="Add to compare" onClick={()=>addCompare(t)} className={`p-2 rounded-md ${t._in_compare ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>⇄</button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex flex-wrap gap-2">
-                  {(t.assets||[]).map(a => <Badge key={a} variant="secondary">{a}</Badge>)}
-                  {(t.styles||[]).map(s => <Badge key={s}>{s}</Badge>)}
-                </div>
-                <div className="text-sm text-muted-foreground">CAGR {t.metrics?.CAGR}% • MDD {t.metrics?.max_drawdown}% • Win {t.metrics?.win_rate}%</div>
-                <div className="text-sm">
-                  <span className="text-muted-foreground">Telegram:</span> {t.links?.telegram || '—'}<br/>
-                  <span className="text-muted-foreground">Email:</span> {t.links?.email || '—'}
-                </div>
-                <div className="flex gap-2">
-                  <Button onClick={() => requestContact(t)}>Request Contact</Button>
-                  <Button variant="secondary" asChild><Link href={`/traders/${t.slug}`}>View</Link></Button>
-                </div>
-              </CardContent>
-            </Card>
-          )})}
+                    <div className="text-sm text-muted-foreground">CAGR {t.metrics?.CAGR}% • MDD {t.metrics?.max_drawdown}% • Win {t.metrics?.win_rate}%</div>
+                    <div className="flex gap-2">
+                      <Button onClick={() => requestContact(t)}>Request Contact</Button>
+                      <Button variant="secondary" asChild><Link href={`/traders/${t.slug}`}>View</Link></Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
       )}
     </div>

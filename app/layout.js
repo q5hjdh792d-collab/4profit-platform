@@ -19,7 +19,7 @@ export default function RootLayout({ children }) {
         <div className="min-h-screen flex flex-col" style={{background:"radial-gradient(circle at 50% 30%, #F8FAFC 0%, #E5EAF0 40%, #CBD5E1 100%)"}}>
           <header className="border-b border-slate-400/40 sticky top-0 z-30 backdrop-blur supports-[backdrop-filter]:bg-white/40">
             <div className="container mx-auto flex items-center justify-between py-3">
-              <Link href="/" className="font-bold text-xl flex items-center gap-2">
+              <Link href="/" className="font-black text-2xl md:text-3xl flex items-center gap-2">
                 <span className="tracking-tighter">4BASE</span>
                 <span className="text-xs text-slate-600 border-l pl-2">by ALVO13</span>
               </Link>

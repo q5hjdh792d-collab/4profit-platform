@@ -1,9 +1,9 @@
+'use client'
+
 import Link from 'next/link'
 import FounderCard from '@/app/components/FounderCard'
 import { Button } from '@/components/ui/button'
 import { motion, AnimatePresence } from 'framer-motion'
-'use client'
-
 import React from 'react'
 
 const chips = [
@@ -25,10 +25,12 @@ export default function HomePage() {
 
   const filtered = items.filter(it => active==='all' || it.type===active || it.type==='founder')
 
+  const glassStyle = { boxShadow: 'inset 0 0 10px rgba(255,255,255,0.05)' }
+
   return (
     <div className="container mx-auto py-16 space-y-16">
       <section className="space-y-1 text-center">
-        <h1 className="text-5xl md:text-6xl font-bold tracking-tighter">4BASE</h1>
+        <h1 className="text-5xl md:text-6xl font-black tracking-tighter">4BASE</h1>
         <p className="text-slate-600">by ALVO13</p>
       </section>
 
@@ -52,19 +54,19 @@ export default function HomePage() {
               >
                 {b.id==='founder' && <FounderCard />}
                 {b.id==='explore' && (
-                  <div className="rounded-2xl border border-slate-300/60 bg-black/30 p-6 md:p-8 backdrop-blur-xl">
+                  <div className="rounded-2xl border border-slate-300/60 bg-black/30 p-6 md:p-8 backdrop-blur-xl" style={glassStyle}>
                     <div className="text-slate-900 font-semibold">Explore traders</div>
                     <div className="mt-6"><Button asChild variant="secondary"><Link href="/traders">Browse Traders</Link></Button></div>
                   </div>
                 )}
                 {b.id==='plans' && (
-                  <div className="rounded-2xl border border-slate-300/60 bg-black/30 p-6 md:p-8 backdrop-blur-xl">
+                  <div className="rounded-2xl border border-slate-300/60 bg-black/30 p-6 md:p-8 backdrop-blur-xl" style={glassStyle}>
                     <div className="text-slate-900 font-semibold">Plans</div>
                     <div className="mt-6"><Button asChild variant="secondary"><Link href="/pricing">See Plans</Link></Button></div>
                   </div>
                 )}
                 {b.id==='highlight' && (
-                  <div className="rounded-2xl border border-slate-300/60 bg-black/30 p-6 md:p-8 backdrop-blur-xl">
+                  <div className="rounded-2xl border border-slate-300/60 bg-black/30 p-6 md:p-8 backdrop-blur-xl" style={glassStyle}>
                     <div className="text-slate-900 font-semibold">High Yield</div>
                     <div className="mt-6"><Button asChild variant="secondary"><Link href="/traders?assets=crypto">Top crypto</Link></Button></div>
                   </div>

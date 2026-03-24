@@ -37,13 +37,13 @@ export default function FounderCard(){
       <div className="flex items-center justify-between">
         <div>
           <div className="text-xs uppercase tracking-wider text-slate-300">Founder Card</div>
-          <div className="text-2xl font-bold mt-1">Platinum Black</div>
+          <div className="text-2xl font-bold mt-1 bg-gradient-to-r from-slate-200 to-white bg-clip-text text-transparent">Platinum Black</div>
         </div>
-        <div className="text-[10px] px-2 py-1 rounded border border-slate-500/50 bg-black/40 text-slate-200">Verified by ALVO13</div>
       </div>
-      <div className="mt-6 flex items-baseline gap-3">
+      <div className="mt-6 flex items-center gap-3">
         <div className="text-sm text-slate-300">BTC/USDT</div>
         <div className="text-3xl font-bold">{price ? `$${price.toLocaleString('en-US',{maximumFractionDigits:2})}` : '—'}</div>
+        <div className="text-[10px] px-2 py-1 rounded border border-slate-500/50 bg-black/40 text-slate-200">Verified by ALVO13</div>
         <div className={`text-xs ${conn==='connected'?'text-green-400':'text-slate-400'}`}>● {conn}</div>
       </div>
     </div>
