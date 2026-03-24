@@ -1,11 +1,11 @@
 import './globals.css'
-import { Inter } from 'next/font/google'
+import { Inter_Tight } from 'next/font/google'
 import Link from 'next/link'
 import { ThemeProvider } from 'next-themes'
 import { Toaster } from '@/components/ui/sonner'
 import RoleChip from '@/app/partials/RoleChip'
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter_Tight({ subsets: ['latin'] })
 
 export const metadata = {
   title: '4BASE — by ALVO13',
