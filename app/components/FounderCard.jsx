@@ -33,11 +33,11 @@ export default function FounderCard(){
   }, [])
 
   return (
-    <div className="rounded-2xl border border-slate-400/50 bg-black/30 text-slate-100 p-6 md:p-8 backdrop-blur shadow-sm">
+    <div className="rounded-2xl border border-slate-500/60 bg-[#020617] text-slate-100 p-6 md:p-8 backdrop-blur-xl shadow-sm">
       <div className="flex items-center justify-between">
         <div>
           <div className="text-xs uppercase tracking-wider text-slate-300">Founder Card</div>
-          <div className="text-2xl font-semibold mt-1">Platinum Black</div>
+          <div className="text-2xl font-bold mt-1">Platinum Black</div>
         </div>
         <div className="text-[10px] px-2 py-1 rounded border border-slate-500/50 bg-black/40 text-slate-200">Verified by ALVO13</div>
       </div>
@@ -46,7 +46,6 @@ export default function FounderCard(){
         <div className="text-3xl font-bold">{price ? `$${price.toLocaleString('en-US',{maximumFractionDigits:2})}` : '—'}</div>
         <div className={`text-xs ${conn==='connected'?'text-green-400':'text-slate-400'}`}>● {conn}</div>
       </div>
-      <div className="mt-6 text-xs text-slate-300">This card is pinned and showcases live BTC price from Binance.</div>
     </div>
   )
 }
