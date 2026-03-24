@@ -1,11 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { toast } from 'sonner'
+import { createClient } from '@supabase/supabase-js'
 import { motion, AnimatePresence } from 'framer-motion'
 
 const chips = [
@@ -16,48 +12,41 @@ const chips = [
 ]
 
 export default function TradersPage() {
-  const [data, setData] = useState({ items: [], total: 0 })
+  const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [active, setActive] = useState('all')
 
-  const load = async () => {
-    setLoading(true)
-    const res = await fetch('/api/traders')
-    const json = await res.json()
-    setData(json)
-    setLoading(false)
-  }
-
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    if (!url || !anon) { setLoading(false); return }
+    const supabase = createClient(url, anon)
+    const load = async () => {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from('traders')
+        .select('id,name,strategy_type,api_verified,pnl_percentage,bio,created_at')
+        .order('created_at', { ascending: false })
+      if (!error) setItems(data || [])
+      setLoading(false)
+    }
+    load()
+  }, [])
 
   const filtered = useMemo(() => {
-    const items = data.items || []
-    if (active === 'all') return items
-    if (active === 'crypto') return items.filter(t => (t.assets||[]).map(a=>String(a).toLowerCase()).includes('crypto'))
-    if (active === 'stocks') return items.filter(t => (t.assets||[]).map(a=>String(a).toLowerCase()).includes('stocks'))
-    if (active === 'high') return items.filter(t => (t.risk_level==='high') || (Number(t.metrics?.CAGR||0) >= 30))
+    if (active==='all') return items
+    if (active==='crypto') return items.filter(t => (t.strategy_type||'').toLowerCase().includes('crypto'))
+    if (active==='stocks') return items.filter(t => (t.strategy_type||'').toLowerCase().includes('stock'))
+    if (active==='high') return items.filter(t => Number(t.pnl_percentage||0) >= 30)
     return items
-  }, [data.items, active])
-
-  const requestContact = async (trader) => {
-    const res = await fetch('/api/contact/request', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trader_id: trader.id }) })
-    const j = await res.json()
-    if (!res.ok) {
-      toast.error(j.error || 'Failed')
-    } else {
-      toast.success('Request sent')
-    }
-  }
+  }, [items, active])
 
   const glassStyle = { boxShadow: 'inset 0 0 10px rgba(255,255,255,0.05)' }
 
   return (
-    <div className="container mx-auto py-12 space-y-8">
+    <div className="container mx-auto py-16 space-y-10">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-black tracking-tighter">Traders</h1>
-        <div className="flex gap-2">
-          <Button onClick={load} variant="secondary">Refresh</Button>
-        </div>
+        <h1 className="text-3xl font-black tracking-tighter">Traders</h1>
       </div>
 
       <div className="flex gap-3">
@@ -66,39 +55,33 @@ export default function TradersPage() {
         ))}
       </div>
 
-      {loading ? <p className="text-muted-foreground">Loading...</p> : (
-        <div className="grid md:grid-cols-3 gap-6 md:gap-8">
+      {loading ? (
+        <div className="grid md:grid-cols-3 gap-8 md:gap-10">
+          {Array.from({length:6}).map((_,i)=> (
+            <div key={i} className="rounded-2xl border border-slate-300/60 bg-black/30 p-6 md:p-8 backdrop-blur-xl animate-pulse" style={glassStyle}>
+              <div className="h-5 bg-white/20 rounded w-2/3" />
+              <div className="mt-3 h-3 bg-white/10 rounded w-1/2" />
+              <div className="mt-5 h-3 bg-white/10 rounded w-full" />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-3 gap-8 md:gap-10">
           <AnimatePresence mode="popLayout">
-            {(filtered||[]).map((t) => (
+            {filtered.map(t => (
               <motion.div key={t.id} layout initial={{opacity:0, scale:0.98}} animate={{opacity:1, scale:1}} exit={{opacity:0, scale:0.98}} transition={{duration:0.2}}>
-                <Card className="hover:shadow-lg transition border-slate-300/60 bg-black/30 backdrop-blur-xl" style={glassStyle}>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-3">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={t.avatar} alt={t.name} className="w-12 h-12 rounded-full object-cover" />
-                      <div className="flex-1">
-                        <Link href={`/traders/${t.slug}`} className="hover:underline font-semibold tracking-tight">{t.name}</Link>
-                        <div className="text-xs text-muted-foreground">{t.country} • {t.experience_years}y • {t.risk_level}</div>
-                        <div className="flex gap-2 mt-1">
-                          {t.listing?.boosted_until && new Date(t.listing.boosted_until) > new Date() && <Badge variant="default">BOOST</Badge>}
-                          {t.listing?.is_pro && <Badge variant="secondary">PRO</Badge>}
-                          {t.is_verified && <Badge>VERIFIED</Badge>}
-                        </div>
-                      </div>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex flex-wrap gap-2">
-                      {(t.assets||[]).map(a => <Badge key={a} variant="secondary">{a}</Badge>)}
-                      {(t.styles||[]).map(s => <Badge key={s}>{s}</Badge>)}
-                    </div>
-                    <div className="text-sm text-muted-foreground">CAGR {t.metrics?.CAGR}% • MDD {t.metrics?.max_drawdown}% • Win {t.metrics?.win_rate}%</div>
-                    <div className="flex gap-2">
-                      <Button onClick={() => requestContact(t)}>Request Contact</Button>
-                      <Button variant="secondary" asChild><Link href={`/traders/${t.slug}`}>View</Link></Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                <div className="rounded-2xl border border-slate-300/60 bg-black/30 p-6 md:p-8 backdrop-blur-xl" style={glassStyle}>
+                  <div className="flex items-center justify-between">
+                    <div className="font-semibold tracking-tight text-slate-900">{t.name}</div>
+                    {t.api_verified && <span className="text-[10px] px-2 py-1 rounded border border-slate-400/60 bg-black/30 text-slate-200">Verified</span>}
+                  </div>
+                  <div className="mt-2 text-sm text-slate-700">{t.strategy_type || '—'}</div>
+                  <div className="mt-4 text-xs text-slate-600 line-clamp-3">{t.bio || ''}</div>
+                  <div className="mt-6 flex items-baseline gap-2">
+                    <div className="text-slate-700 text-sm">PnL</div>
+                    <div className="text-2xl font-bold text-slate-900">{typeof t.pnl_percentage==='number' ? `${t.pnl_percentage}%` : '—'}</div>
+                  </div>
+                </div>
               </motion.div>
             ))}
           </AnimatePresence>
